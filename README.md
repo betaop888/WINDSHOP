@@ -14,7 +14,7 @@ Next.js marketplace for Minecraft items with:
 - Lucide-react
 - Prisma + PostgreSQL (required for shared online state)
 
-## 1) Local setup
+## 1) Loцcal setup
 
 ```bash
 npm install
