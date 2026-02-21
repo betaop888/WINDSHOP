@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RequestStatus {
+  OPEN
+  CLAIMED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id              String            @id @default(cuid())
+  username        String            @unique
+  passwordHash    String
+  bio             String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  sessions        Session[]
+  createdRequests PurchaseRequest[] @relation("CreatedBy")
+  claimedRequests PurchaseRequest[] @relation("ClaimedBy")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PurchaseRequest {
+  id             String        @id @default(cuid())
+  itemId         String
+  itemName       String
+  quantity       Int
+  offeredPriceAr Int
+  status         RequestStatus @default(OPEN)
+  creatorId      String
+  claimerId      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  creator        User          @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
+  claimer        User?         @relation("ClaimedBy", fields: [claimerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([creatorId])
+  @@index([claimerId])
+}

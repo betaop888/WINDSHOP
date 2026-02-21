@@ -1,60 +1,73 @@
-# Wind Shop Marketplace (Next.js)
+# Wind Shop Marketplace (Online, Shared for All Players)
 
-Маркетплейс игровых предметов Minecraft с валютой **Ары** (алмазная руда), сделанный на:
+Next.js marketplace for Minecraft items with:
+- English registration/login (`username + password`)
+- Shared online purchase requests (all users see same board)
+- `Take / Release / Complete / Cancel` workflow
+- Player profiles with stats and editable bio
+- Prices merged from `https://betaop888.github.io/wind.github.io/data/items.json`
 
-- Next.js (App Router)
+## Stack
+
+- Next.js 14 (App Router)
 - Tailwind CSS
-- lucide-react
-- локальная авторизация и заявки на базе `localStorage` (прототип)
+- Lucide-react
+- Prisma + PostgreSQL (required for shared online state)
 
-## Быстрый старт
+## 1) Local setup
 
 ```bash
 npm install
+cp .env.example .env
+```
+
+Set `.env`:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
+SESSION_COOKIE_NAME="wind_session"
+```
+
+Create/update DB schema:
+
+```bash
+npm run db:push
+```
+
+Run:
+
+```bash
 npm run dev
 ```
 
-Открыть: `http://localhost:3000`
+## 2) Deploy GitHub -> Vercel (without issues)
 
-## Деплой на Vercel
+1. Push full project to GitHub (`node_modules` and `.next` are ignored).
+2. Import repo in Vercel as **Next.js** project.
+3. In Vercel Project Settings -> Environment Variables add:
+   - `DATABASE_URL`
+   - `SESSION_COOKIE_NAME` (optional, default is `wind_session`)
+4. Deploy. `vercel.json` already runs `npm run db:push && npm run build`, so schema is synced on build automatically.
 
-1. Залить проект в GitHub.
-2. На Vercel: `Add New -> Project` и выбрать репозиторий.
-3. Build command: `npm run build`
-4. Output: стандартный Next.js.
-5. Node.js version на Vercel: `20+` (в проекте уже задано через `engines`).
+## Core routes
 
-> В репозиторий **не** добавляйте `node_modules` и `.next` (они уже в `.gitignore`).
+- `/` - Market page
+- `/login` - Login
+- `/register` - Registration (English)
+- `/requests` - Shared live requests board
+- `/profile/[username]` - Public profile + own bio editing
 
-## Структура
+## API routes
 
-```text
-app/
-  globals.css
-  layout.tsx
-  page.tsx
-  login/page.tsx
-  register/page.tsx
-  requests/page.tsx
-components/
-  auth/AuthForm.tsx
-  layout/Header.tsx
-  layout/MainLayout.tsx
-  market/MarketPage.tsx
-  market/ProductCard.tsx
-  providers/AppStateProvider.tsx
-  requests/PurchaseRequestsTable.tsx
-  requests/RequestsPage.tsx
-lib/
-  constants.ts
-  market-catalog.ts
-  types.ts
-```
-
-## Источник цен
-
-Цены и торговые лоты подтягиваются из:
-
-`https://betaop888.github.io/wind.github.io/data/items.json`
-
-Если источник временно недоступен, используется локальный fallback-каталог.
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/requests?status=active|all`
+- `POST /api/requests`
+- `POST /api/requests/:id/claim`
+- `POST /api/requests/:id/release`
+- `POST /api/requests/:id/complete`
+- `POST /api/requests/:id/cancel`
+- `GET /api/profiles/:username`
+- `GET/PATCH /api/profiles/me`

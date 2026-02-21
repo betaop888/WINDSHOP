@@ -9,8 +9,8 @@ import {
   useMemo,
   useState
 } from "react";
-import { STORAGE_KEYS } from "@/lib/constants";
-import { PurchaseRequest, UserAccount } from "@/lib/types";
+import { REQUESTS_POLL_INTERVAL_MS } from "@/lib/constants";
+import { PurchaseRequest } from "@/lib/types";
 
 type AuthResult = { ok: boolean; message: string };
 
@@ -21,169 +21,256 @@ type AddRequestInput = {
   offeredPriceAr: number;
 };
 
+type SessionUser = {
+  username: string;
+  bio: string | null;
+};
+
 type AppStateContextType = {
   hydrated: boolean;
-  currentUser: string | null;
+  loadingRequests: boolean;
+  currentUser: SessionUser | null;
   requests: PurchaseRequest[];
-  login: (nickname: string, password: string) => AuthResult;
-  register: (nickname: string, password: string, repeatPassword: string) => AuthResult;
-  logout: () => void;
-  addRequest: (input: AddRequestInput) => AuthResult;
-  removeRequest: (requestId: string) => void;
+  login: (username: string, password: string) => Promise<AuthResult>;
+  register: (
+    username: string,
+    password: string,
+    repeatPassword: string
+  ) => Promise<AuthResult>;
+  logout: () => Promise<void>;
+  addRequest: (input: AddRequestInput) => Promise<AuthResult>;
+  claimRequest: (requestId: string) => Promise<AuthResult>;
+  releaseRequest: (requestId: string) => Promise<AuthResult>;
+  completeRequest: (requestId: string) => Promise<AuthResult>;
+  cancelRequest: (requestId: string) => Promise<AuthResult>;
+  refreshRequests: () => Promise<void>;
+  updateMyBio: (bio: string) => Promise<AuthResult>;
 };
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
 
-function parseStorageArray<T>(value: string | null, fallback: T[]): T[] {
-  if (!value) return fallback;
+async function parseResponse<T>(response: Response): Promise<{ ok: boolean; data: T; message: string }> {
+  let json: unknown = {};
   try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as T[]) : fallback;
+    json = await response.json();
   } catch {
-    return fallback;
+    json = {};
   }
+
+  const maybeMessage = (json as { message?: string })?.message;
+  const message = maybeMessage || (response.ok ? "OK" : "Request failed.");
+
+  return {
+    ok: response.ok,
+    data: json as T,
+    message
+  };
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
-  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
-  useEffect(() => {
-    const storedUsers = parseStorageArray<UserAccount>(localStorage.getItem(STORAGE_KEYS.users), []);
-    const storedRequests = parseStorageArray<PurchaseRequest>(
-      localStorage.getItem(STORAGE_KEYS.requests),
-      []
-    );
-    const storedSession = localStorage.getItem(STORAGE_KEYS.session);
+  const refreshSession = useCallback(async () => {
+    const response = await fetch("/api/auth/me", { method: "GET" });
+    const parsed = await parseResponse<{ user: SessionUser | null }>(response);
+    setCurrentUser(parsed.data.user ?? null);
+  }, []);
 
-    setUsers(storedUsers);
-    setRequests(storedRequests);
-    setCurrentUser(storedSession || null);
-    setHydrated(true);
+  const refreshRequests = useCallback(async () => {
+    setLoadingRequests(true);
+    try {
+      const response = await fetch("/api/requests?status=active", { method: "GET" });
+      const parsed = await parseResponse<{ requests: PurchaseRequest[] }>(response);
+      if (parsed.ok) {
+        setRequests(parsed.data.requests ?? []);
+      }
+    } finally {
+      setLoadingRequests(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-  }, [hydrated, users]);
+    void (async () => {
+      await Promise.all([refreshSession(), refreshRequests()]);
+      setHydrated(true);
+    })();
+  }, [refreshRequests, refreshSession]);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEYS.requests, JSON.stringify(requests));
-  }, [hydrated, requests]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    if (currentUser) {
-      localStorage.setItem(STORAGE_KEYS.session, currentUser);
-      return;
-    }
-    localStorage.removeItem(STORAGE_KEYS.session);
-  }, [currentUser, hydrated]);
+    const timer = setInterval(() => {
+      void refreshRequests();
+    }, REQUESTS_POLL_INTERVAL_MS);
 
-  const login = useCallback(
-    (nickname: string, password: string): AuthResult => {
-      const cleanNickname = nickname.trim();
-      const found = users.find(
-        (user) =>
-          user.nickname.toLowerCase() === cleanNickname.toLowerCase() && user.password === password
-      );
+    return () => clearInterval(timer);
+  }, [hydrated, refreshRequests]);
 
-      if (!found) {
-        return { ok: false, message: "Неверный ник или пароль." };
-      }
+  const login = useCallback(async (username: string, password: string): Promise<AuthResult> => {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
 
-      setCurrentUser(found.nickname);
-      return { ok: true, message: `Вход выполнен: ${found.nickname}` };
-    },
-    [users]
-  );
+    const parsed = await parseResponse<{ user?: SessionUser }>(response);
+    if (!parsed.ok) return { ok: false, message: parsed.message };
+
+    setCurrentUser(parsed.data.user ?? null);
+    await refreshRequests();
+    return { ok: true, message: "Logged in successfully." };
+  }, [refreshRequests]);
 
   const register = useCallback(
-    (nickname: string, password: string, repeatPassword: string): AuthResult => {
-      const cleanNickname = nickname.trim();
+    async (username: string, password: string, repeatPassword: string): Promise<AuthResult> => {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, repeatPassword })
+      });
 
-      if (cleanNickname.length < 3) {
-        return { ok: false, message: "Ник должен быть не короче 3 символов." };
-      }
-      if (password.length < 4) {
-        return { ok: false, message: "Пароль должен быть не короче 4 символов." };
-      }
-      if (password !== repeatPassword) {
-        return { ok: false, message: "Пароли не совпадают." };
-      }
+      const parsed = await parseResponse<{ user?: SessionUser }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
 
-      const alreadyExists = users.some(
-        (user) => user.nickname.toLowerCase() === cleanNickname.toLowerCase()
-      );
-      if (alreadyExists) {
-        return { ok: false, message: "Этот ник уже зарегистрирован." };
-      }
-
-      const nextUsers = [...users, { nickname: cleanNickname, password }];
-      setUsers(nextUsers);
-      setCurrentUser(cleanNickname);
-      return { ok: true, message: `Аккаунт создан: ${cleanNickname}` };
+      setCurrentUser(parsed.data.user ?? null);
+      await refreshRequests();
+      return { ok: true, message: "Account created successfully." };
     },
-    [users]
+    [refreshRequests]
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setCurrentUser(null);
-  }, []);
+    await refreshRequests();
+  }, [refreshRequests]);
 
   const addRequest = useCallback(
-    (input: AddRequestInput): AuthResult => {
-      if (!currentUser) {
-        return { ok: false, message: "Для создания заявки нужно войти в аккаунт." };
-      }
+    async (input: AddRequestInput): Promise<AuthResult> => {
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input)
+      });
 
-      if (input.quantity <= 0 || !Number.isFinite(input.quantity)) {
-        return { ok: false, message: "Количество должно быть больше 0." };
-      }
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
 
-      const payload: PurchaseRequest = {
-        id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-        itemId: input.itemId,
-        itemName: input.itemName,
-        nickname: currentUser,
-        quantity: input.quantity,
-        offeredPriceAr: input.offeredPriceAr,
-        createdAt: new Date().toISOString()
-      };
-
-      setRequests((prev) => [payload, ...prev]);
-      return { ok: true, message: "Заявка на покупку создана." };
+      await refreshRequests();
+      return { ok: true, message: "Purchase request created." };
     },
-    [currentUser]
+    [refreshRequests]
   );
 
-  const removeRequest = useCallback(
-    (requestId: string) => {
-      setRequests((prev) =>
-        prev.filter((request) => {
-          if (request.id !== requestId) return true;
-          return request.nickname !== currentUser;
-        })
-      );
+  const claimRequest = useCallback(
+    async (requestId: string): Promise<AuthResult> => {
+      const response = await fetch(`/api/requests/${requestId}/claim`, {
+        method: "POST"
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Request taken." };
     },
-    [currentUser]
+    [refreshRequests]
   );
+
+  const releaseRequest = useCallback(
+    async (requestId: string): Promise<AuthResult> => {
+      const response = await fetch(`/api/requests/${requestId}/release`, {
+        method: "POST"
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Request released back to market." };
+    },
+    [refreshRequests]
+  );
+
+  const completeRequest = useCallback(
+    async (requestId: string): Promise<AuthResult> => {
+      const response = await fetch(`/api/requests/${requestId}/complete`, {
+        method: "POST"
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Request marked as completed." };
+    },
+    [refreshRequests]
+  );
+
+  const cancelRequest = useCallback(
+    async (requestId: string): Promise<AuthResult> => {
+      const response = await fetch(`/api/requests/${requestId}/cancel`, {
+        method: "POST"
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Request cancelled." };
+    },
+    [refreshRequests]
+  );
+
+  const updateMyBio = useCallback(async (bio: string): Promise<AuthResult> => {
+    const response = await fetch("/api/profiles/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bio })
+    });
+
+    const parsed = await parseResponse<{ profile?: SessionUser }>(response);
+    if (!parsed.ok) return { ok: false, message: parsed.message };
+
+    if (parsed.data.profile) {
+      setCurrentUser((prev) => (prev ? { ...prev, bio: parsed.data.profile?.bio ?? null } : prev));
+    }
+
+    return { ok: true, message: "Profile updated." };
+  }, []);
 
   const value = useMemo<AppStateContextType>(
     () => ({
       hydrated,
+      loadingRequests,
       currentUser,
       requests,
       login,
       register,
       logout,
       addRequest,
-      removeRequest
+      claimRequest,
+      releaseRequest,
+      completeRequest,
+      cancelRequest,
+      refreshRequests,
+      updateMyBio
     }),
-    [addRequest, currentUser, hydrated, login, logout, register, removeRequest, requests]
+    [
+      hydrated,
+      loadingRequests,
+      currentUser,
+      requests,
+      login,
+      register,
+      logout,
+      addRequest,
+      claimRequest,
+      releaseRequest,
+      completeRequest,
+      cancelRequest,
+      refreshRequests,
+      updateMyBio
+    ]
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

@@ -18,22 +18,31 @@ type SortMode = "featured" | "priceAsc" | "priceDesc" | "nameAsc";
 
 const slides = [
   {
-    title: "АРЕНДА БАНЕРА 8 АР/В СУТКИ",
-    subtitle: "Продвигай свой магазин на главной витрине."
+    title: "BANNER RENTAL 8 AR / DAY",
+    subtitle: "Promote your store on the front showcase."
   },
   {
-    title: "КНИГИ, АЛМАЗНЫЕ И НЕЗЕРИТОВЫЕ ЛОТЫ",
-    subtitle: "Категории и сетка в стиле вашего reference."
+    title: "ENCHANTED BOOKS • DIAMOND • NETHERITE",
+    subtitle: "Marketplace styled after your reference."
   },
   {
-    title: "ОПЛАТА В ВАЛЮТЕ АРЫ",
-    subtitle: "1 ар = 1 алмазная руда."
+    title: "SHARED ONLINE REQUEST BOARD",
+    subtitle: "Everyone sees active requests and can take them."
   }
 ];
 
 export function MarketPage() {
   const router = useRouter();
-  const { currentUser, requests, addRequest, removeRequest } = useAppState();
+  const {
+    currentUser,
+    requests,
+    loadingRequests,
+    addRequest,
+    claimRequest,
+    releaseRequest,
+    completeRequest,
+    cancelRequest
+  } = useAppState();
   const [items, setItems] = useState<MarketItem[]>(BASE_MARKET_ITEMS);
   const [category, setCategory] = useState<string>("all");
   const [sortMode, setSortMode] = useState<SortMode>("featured");
@@ -73,9 +82,7 @@ export function MarketPage() {
     return () => clearTimeout(timer);
   }, [message]);
 
-  const categories = useMemo(() => {
-    return [...new Set(items.map((item) => item.category))];
-  }, [items]);
+  const categories = useMemo(() => [...new Set(items.map((item) => item.category))], [items]);
 
   const visibleItems = useMemo(() => {
     let filtered = items;
@@ -90,22 +97,21 @@ export function MarketPage() {
     } else if (sortMode === "nameAsc") {
       filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, "ru"));
     }
-
     return filtered;
   }, [category, items, sortMode]);
 
-  function handleCreateRequest(payload: {
+  async function handleCreateRequest(payload: {
     item: MarketItem;
     quantity: number;
     offeredPriceAr: number;
   }) {
     if (!currentUser) {
-      setMessage("Для покупки нужен вход по нику и паролю.");
+      setMessage("Please login first.");
       router.push("/login");
       return;
     }
 
-    const result = addRequest({
+    const result = await addRequest({
       itemId: payload.item.id,
       itemName: payload.item.name,
       quantity: payload.quantity * payload.item.lotSize,
@@ -121,7 +127,7 @@ export function MarketPage() {
           type="button"
           onClick={() => setSlideIndex((prev) => (prev + slides.length - 1) % slides.length)}
           className="mx-auto grid h-8 w-8 place-items-center rounded-lg text-slate-200 transition hover:bg-white/5"
-          aria-label="Предыдущий слайд"
+          aria-label="Previous slide"
         >
           <ChevronLeft size={18} />
         </button>
@@ -143,7 +149,7 @@ export function MarketPage() {
           type="button"
           onClick={() => setSlideIndex((prev) => (prev + 1) % slides.length)}
           className="mx-auto grid h-8 w-8 place-items-center rounded-lg text-slate-200 transition hover:bg-white/5"
-          aria-label="Следующий слайд"
+          aria-label="Next slide"
         >
           <ChevronRight size={18} />
         </button>
@@ -151,13 +157,13 @@ export function MarketPage() {
 
       <div className="flex flex-wrap gap-2 md:gap-3">
         <label className="text-xs text-muted">
-          Категория
+          Category
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             className="mt-1 block min-w-44 rounded-full border border-line bg-panel px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
           >
-            <option value="all">Все категории</option>
+            <option value="all">All categories</option>
             {categories.map((entry) => (
               <option key={entry} value={entry}>
                 {entry}
@@ -167,16 +173,16 @@ export function MarketPage() {
         </label>
 
         <label className="text-xs text-muted">
-          Сортировка
+          Sort
           <select
             value={sortMode}
             onChange={(event) => setSortMode(event.target.value as SortMode)}
             className="mt-1 block min-w-44 rounded-full border border-line bg-panel px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
           >
-            <option value="featured">По умолчанию</option>
-            <option value="priceAsc">Сначала дешевые</option>
-            <option value="priceDesc">Сначала дорогие</option>
-            <option value="nameAsc">По названию</option>
+            <option value="featured">Featured</option>
+            <option value="priceAsc">Price: low to high</option>
+            <option value="priceDesc">Price: high to low</option>
+            <option value="nameAsc">Name A-Z</option>
           </select>
         </label>
       </div>
@@ -190,23 +196,28 @@ export function MarketPage() {
       <section className="space-y-3 pt-2">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="font-display text-lg md:text-xl">Заявки на покупку</h2>
+            <h2 className="font-display text-lg md:text-xl">Live purchase requests</h2>
             <p className="text-xs text-muted md:text-sm">
-              Список активных запросов: предмет, ник, количество, цена в арах.
+              Shared online board: item, owner, quantity, AR price and who took it.
             </p>
           </div>
           <Link
             href="/requests"
             className="rounded-full border border-line px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
           >
-            Открыть весь список
+            Open full board
           </Link>
         </div>
 
+        {loadingRequests ? <p className="text-xs text-muted">Updating requests...</p> : null}
+
         <PurchaseRequestsTable
           requests={requests}
-          currentUser={currentUser}
-          onRemoveRequest={removeRequest}
+          currentUser={currentUser?.username ?? null}
+          onTake={(id) => void claimRequest(id).then((x) => setMessage(x.message))}
+          onRelease={(id) => void releaseRequest(id).then((x) => setMessage(x.message))}
+          onComplete={(id) => void completeRequest(id).then((x) => setMessage(x.message))}
+          onCancel={(id) => void cancelRequest(id).then((x) => setMessage(x.message))}
           compact
         />
       </section>

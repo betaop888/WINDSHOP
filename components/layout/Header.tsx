@@ -6,9 +6,9 @@ import { Bell, ClipboardList, House, LogOut, UserRound } from "lucide-react";
 import { useAppState } from "@/components/providers/AppStateProvider";
 
 const navItems = [
-  { href: "/", label: "Каталог", icon: House },
-  { href: "/requests", label: "Заявки", icon: ClipboardList },
-  { href: "/login", label: "Аккаунт", icon: UserRound }
+  { href: "/", label: "Market", icon: House },
+  { href: "/requests", label: "Active Requests", icon: ClipboardList },
+  { href: "/login", label: "Auth", icon: UserRound }
 ];
 
 function navClass(isActive: boolean) {
@@ -30,7 +30,7 @@ export function Header() {
         <div className="h-9 w-16 rounded-sm bg-slate-300" />
         <div>
           <p className="font-display text-sm tracking-[0.14em] text-white md:text-base">WIND SHOP</p>
-          <p className="text-xs text-muted">Валюта: Ары (Алмазная Руда)</p>
+          <p className="text-xs text-muted">Currency: AR (Diamond Ore)</p>
         </div>
       </div>
 
@@ -46,27 +46,45 @@ export function Header() {
             );
           })}
 
+          {currentUser ? (
+            <Link
+              href={`/profile/${encodeURIComponent(currentUser.username)}`}
+              title="Profile"
+              className={navClass(pathname.startsWith("/profile/"))}
+            >
+              <UserRound size={17} strokeWidth={1.9} />
+            </Link>
+          ) : null}
+
           <button
             type="button"
-            title="Уведомления"
+            title="Notifications"
             className="grid h-9 w-9 place-items-center rounded-lg border border-transparent text-slate-200 hover:bg-white/5"
-            aria-label="Уведомления"
+            aria-label="Notifications"
           >
             <Bell size={17} strokeWidth={1.9} />
           </button>
         </nav>
 
         <p className="text-xs text-muted">
-          Игрок: <span className="font-semibold text-slate-100">{currentUser ?? "Гость"}</span>
+          Player: <span className="font-semibold text-slate-100">{currentUser?.username ?? "Guest"}</span>
           {currentUser ? (
-            <button
-              type="button"
-              onClick={logout}
-              className="ml-2 inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-500"
-            >
-              <LogOut size={12} />
-              Выйти
-            </button>
+            <>
+              <Link
+                href={`/profile/${encodeURIComponent(currentUser.username)}`}
+                className="ml-2 rounded-full border border-line px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-500"
+              >
+                Profile
+              </Link>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="ml-2 inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-500"
+              >
+                <LogOut size={12} />
+                Logout
+              </button>
+            </>
           ) : null}
         </p>
       </div>

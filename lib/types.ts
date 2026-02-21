@@ -18,17 +18,29 @@ export interface MarketItem {
   priceAr: number;
 }
 
+export type RequestStatus = "OPEN" | "CLAIMED" | "COMPLETED" | "CANCELLED";
+
 export interface PurchaseRequest {
   id: string;
   itemId: string;
   itemName: string;
-  nickname: string;
+  creatorName: string;
+  claimerName: string | null;
   quantity: number;
   offeredPriceAr: number;
+  status: RequestStatus;
   createdAt: string;
+  updatedAt: string;
 }
 
-export interface UserAccount {
-  nickname: string;
-  password: string;
+export interface AccountProfile {
+  username: string;
+  bio: string | null;
+  createdAt: string;
+  stats: {
+    createdOpen: number;
+    createdTotal: number;
+    claimedActive: number;
+    completedAsClaimer: number;
+  };
 }
