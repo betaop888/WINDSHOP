@@ -22,6 +22,9 @@ npm run dev
 2. На Vercel: `Add New -> Project` и выбрать репозиторий.
 3. Build command: `npm run build`
 4. Output: стандартный Next.js.
+5. Node.js version на Vercel: `20+` (в проекте уже задано через `engines`).
+
+> В репозиторий **не** добавляйте `node_modules` и `.next` (они уже в `.gitignore`).
 
 ## Структура
 
