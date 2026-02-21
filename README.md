@@ -14,7 +14,7 @@ Next.js marketplace for Minecraft items with:
 - Lucide-react
 - Prisma + PostgreSQL (required for shared online state)
 
-## 1) Loцcal setup
+## 1) Local setup
 
 ```bash
 npm install
@@ -48,6 +48,14 @@ npm run dev
    - `DATABASE_URL`
    - `SESSION_COOKIE_NAME` (optional, default is `wind_session`)
 4. Deploy. `vercel.json` already runs `npm run db:push && npm run build`, so schema is synced on build automatically.
+
+### If build fails with `Environment variable not found: DATABASE_URL`
+
+- Add `DATABASE_URL` in Vercel env vars and redeploy, **or**
+- Connect Vercel Postgres. Project now auto-falls back to:
+  - `POSTGRES_PRISMA_URL`
+  - `POSTGRES_URL_NON_POOLING`
+  - `POSTGRES_URL`
 
 ## Core routes
 

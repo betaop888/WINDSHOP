@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "db:push": "node scripts/prisma-db-push.cjs",
+    "db:push:raw": "prisma db push",
     "db:studio": "prisma studio"
   },
   "dependencies": {

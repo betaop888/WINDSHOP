@@ -5,6 +5,14 @@ declare global {
   var prismaGlobal: PrismaClient | undefined;
 }
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL =
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL ||
+    "";
+}
+
 export const prisma =
   global.prismaGlobal ||
   new PrismaClient({
