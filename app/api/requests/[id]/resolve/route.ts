@@ -10,28 +10,30 @@ type Params = { params: { id: string } };
 export async function POST(request: NextRequest, { params }: Params) {
   const user = await getAuthUserByRequest(request);
   if (!user) return fail("Требуется авторизация.", 401);
+  if (!isAdmin(user)) return fail("Требуются права администратора.", 403);
 
   const existing = await prisma.purchaseRequest.findUnique({
     where: { id: params.id }
   });
   if (!existing) return fail("Заявка не найдена.", 404);
+  if (existing.status !== RequestStatus.DISPUTED) {
+    return fail("Решить можно только заявку в статусе спора.", 400);
+  }
 
-  if (existing.status !== RequestStatus.CLAIMED) {
-    return fail("Вернуть можно только заявку в работе.", 400);
+  const body = await request.json().catch(() => ({}));
+  const decision = String((body as { decision?: string }).decision ?? "").trim();
+
+  if (!["complete", "cancel"].includes(decision)) {
+    return fail("decision должен быть complete или cancel.", 400);
   }
-  if (existing.claimerId !== user.id && !isAdmin(user)) {
-    return fail("Только исполнитель может вернуть заявку.", 403);
-  }
+
+  const nextStatus = decision === "complete" ? RequestStatus.COMPLETED : RequestStatus.CANCELLED;
 
   const updated = await prisma.purchaseRequest.update({
     where: { id: params.id },
     data: {
-      status: RequestStatus.OPEN,
-      claimerId: null,
-      sellerConfirmedAt: null,
-      buyerConfirmedAt: null,
-      disputedAt: null,
-      disputeComment: null
+      status: nextStatus,
+      buyerConfirmedAt: decision === "complete" ? new Date() : existing.buyerConfirmedAt
     },
     include: {
       creator: { select: { username: true } },

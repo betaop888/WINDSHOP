@@ -7,6 +7,10 @@ type DbRequest = {
   quantity: number;
   offeredPriceAr: number;
   status: RequestStatus;
+  sellerConfirmedAt: Date | null;
+  buyerConfirmedAt: Date | null;
+  disputedAt: Date | null;
+  disputeComment: string | null;
   createdAt: Date;
   updatedAt: Date;
   creator: { username: string };
@@ -45,6 +49,10 @@ export function serializePurchaseRequest(request: DbRequest): PurchaseRequest {
     quantity: request.quantity,
     offeredPriceAr: request.offeredPriceAr,
     status: request.status,
+    sellerConfirmedAt: request.sellerConfirmedAt ? request.sellerConfirmedAt.toISOString() : null,
+    buyerConfirmedAt: request.buyerConfirmedAt ? request.buyerConfirmedAt.toISOString() : null,
+    disputedAt: request.disputedAt ? request.disputedAt.toISOString() : null,
+    disputeComment: request.disputeComment,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString()
   };

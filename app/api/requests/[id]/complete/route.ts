@@ -16,21 +16,20 @@ export async function POST(request: NextRequest, { params }: Params) {
   });
   if (!existing) return fail("Заявка не найдена.", 404);
 
-  if (existing.status !== RequestStatus.CLAIMED) {
-    return fail("Завершить можно только заявку в работе.", 400);
+  if (existing.status !== RequestStatus.AWAITING_BUYER_CONFIRM) {
+    return fail("Подтвердить можно только этап после сдачи товара продавцом.", 400);
   }
 
-  const permitted =
-    existing.creatorId === user.id ||
-    existing.claimerId === user.id ||
-    existing.preferredSellerId === user.id ||
-    isAdmin(user);
-  if (!permitted) return fail("Недостаточно прав для завершения заявки.", 403);
+  const permitted = existing.creatorId === user.id || isAdmin(user);
+  if (!permitted) {
+    return fail("Только покупатель может подтвердить получение.", 403);
+  }
 
   const updated = await prisma.purchaseRequest.update({
     where: { id: params.id },
     data: {
-      status: RequestStatus.COMPLETED
+      status: RequestStatus.COMPLETED,
+      buyerConfirmedAt: new Date()
     },
     include: {
       creator: { select: { username: true } },

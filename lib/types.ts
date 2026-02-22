@@ -45,7 +45,13 @@ export interface CartItem {
   priceAr: number;
 }
 
-export type RequestStatus = "OPEN" | "CLAIMED" | "COMPLETED" | "CANCELLED";
+export type RequestStatus =
+  | "OPEN"
+  | "CLAIMED"
+  | "AWAITING_BUYER_CONFIRM"
+  | "DISPUTED"
+  | "COMPLETED"
+  | "CANCELLED";
 export type UserRole = "USER" | "ADMIN";
 
 export interface PurchaseRequest {
@@ -58,6 +64,10 @@ export interface PurchaseRequest {
   quantity: number;
   offeredPriceAr: number;
   status: RequestStatus;
+  sellerConfirmedAt: string | null;
+  buyerConfirmedAt: string | null;
+  disputedAt: string | null;
+  disputeComment: string | null;
   createdAt: string;
   updatedAt: string;
 }

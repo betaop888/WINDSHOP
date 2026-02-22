@@ -43,7 +43,13 @@ type AppStateContextType = {
   addRequest: (input: AddRequestInput) => Promise<ActionResult>;
   claimRequest: (requestId: string) => Promise<ActionResult>;
   releaseRequest: (requestId: string) => Promise<ActionResult>;
+  markDeliveredRequest: (requestId: string) => Promise<ActionResult>;
   completeRequest: (requestId: string) => Promise<ActionResult>;
+  openDisputeRequest: (requestId: string, reason: string) => Promise<ActionResult>;
+  resolveDisputeRequest: (
+    requestId: string,
+    decision: "complete" | "cancel"
+  ) => Promise<ActionResult>;
   cancelRequest: (requestId: string) => Promise<ActionResult>;
   refreshRequests: () => Promise<void>;
   refreshListings: () => Promise<void>;
@@ -266,6 +272,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [refreshRequests]
   );
 
+  const markDeliveredRequest = useCallback(
+    async (requestId: string): Promise<ActionResult> => {
+      const response = await fetch(`/api/requests/${requestId}/mark-delivered`, {
+        method: "POST"
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Отмечено: товар сдан. Ожидаем подтверждение покупателя." };
+    },
+    [refreshRequests]
+  );
+
   const completeRequest = useCallback(
     async (requestId: string): Promise<ActionResult> => {
       const response = await fetch(`/api/requests/${requestId}/complete`, {
@@ -275,7 +295,45 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Сделка отмечена как успешная." };
+      return { ok: true, message: "Покупатель подтвердил получение. Сделка завершена." };
+    },
+    [refreshRequests]
+  );
+
+  const openDisputeRequest = useCallback(
+    async (requestId: string, reason: string): Promise<ActionResult> => {
+      const response = await fetch(`/api/requests/${requestId}/dispute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return { ok: true, message: "Спор открыт. Ожидается решение администратора." };
+    },
+    [refreshRequests]
+  );
+
+  const resolveDisputeRequest = useCallback(
+    async (requestId: string, decision: "complete" | "cancel"): Promise<ActionResult> => {
+      const response = await fetch(`/api/requests/${requestId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision })
+      });
+      const parsed = await parseResponse<{ request?: PurchaseRequest }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return {
+        ok: true,
+        message:
+          decision === "complete"
+            ? "Спор решён: сделка подтверждена."
+            : "Спор решён: сделка отменена."
+      };
     },
     [refreshRequests]
   );
@@ -504,7 +562,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       addRequest,
       claimRequest,
       releaseRequest,
+      markDeliveredRequest,
       completeRequest,
+      openDisputeRequest,
+      resolveDisputeRequest,
       cancelRequest,
       refreshRequests,
       refreshListings,
@@ -533,7 +594,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       addRequest,
       claimRequest,
       releaseRequest,
+      markDeliveredRequest,
       completeRequest,
+      openDisputeRequest,
+      resolveDisputeRequest,
       cancelRequest,
       refreshRequests,
       refreshListings,

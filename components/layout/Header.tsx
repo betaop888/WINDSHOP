@@ -41,7 +41,8 @@ export function Header() {
     logout,
     requests,
     cartItems,
-    claimRequest
+    claimRequest,
+    completeRequest
   } = useAppState();
 
   const navItems = currentUser ? userNavItems : guestNavItems;
@@ -60,6 +61,29 @@ export function Header() {
       )
       .sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt)));
   }, [currentUser, requests]);
+
+  const buyerConfirmNotifications = useMemo(() => {
+    if (!currentUser) return [];
+    const current = currentUser.username.toLowerCase();
+
+    return requests
+      .filter(
+        (request) =>
+          request.status === "AWAITING_BUYER_CONFIRM" &&
+          request.creatorName.toLowerCase() === current
+      )
+      .sort((a, b) => Number(new Date(b.updatedAt)) - Number(new Date(a.updatedAt)));
+  }, [currentUser, requests]);
+
+  const disputeNotifications = useMemo(() => {
+    if (!currentUser || currentUser.role !== "ADMIN") return [];
+    return requests
+      .filter((request) => request.status === "DISPUTED")
+      .sort((a, b) => Number(new Date(b.updatedAt)) - Number(new Date(a.updatedAt)));
+  }, [currentUser, requests]);
+
+  const notificationsCount =
+    sellerNotifications.length + buyerConfirmNotifications.length + disputeNotifications.length;
 
   useEffect(() => {
     if (!message) return;
@@ -118,66 +142,135 @@ export function Header() {
             aria-label="Уведомления"
           >
             <Bell size={17} strokeWidth={1.9} />
-            {currentUser && sellerNotifications.length ? (
+            {currentUser && notificationsCount ? (
               <span className="absolute -right-1 -top-1 rounded-full border border-line bg-[#0d131e] px-1.5 text-[10px] font-semibold text-accent">
-                {sellerNotifications.length}
+                {notificationsCount}
               </span>
             ) : null}
           </button>
 
           {notificationsOpen ? (
-            <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[340px] rounded-xl border border-line bg-[#0d131e] p-3 shadow-card">
+            <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[380px] rounded-xl border border-line bg-[#0d131e] p-3 shadow-card">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-100">Уведомления продавца</p>
+                <p className="text-sm font-semibold text-slate-100">Уведомления</p>
                 <Link
                   href="/requests"
                   onClick={() => setNotificationsOpen(false)}
                   className="text-xs text-accent hover:underline"
                 >
-                  Все заявки
+                  Центр сделок
                 </Link>
               </div>
 
               {!currentUser ? (
                 <p className="text-xs text-muted">Войдите, чтобы видеть уведомления.</p>
-              ) : sellerNotifications.length ? (
-                <div className="max-h-72 space-y-2 overflow-auto pr-1">
-                  {sellerNotifications.slice(0, 6).map((request) => (
-                    <article key={request.id} className="rounded-lg border border-line bg-[#070b11] p-2">
-                      <p className="text-sm font-semibold text-slate-100">{request.itemName}</p>
-                      <p className="mt-1 text-xs text-muted">
-                        Покупатель: <span className="text-slate-200">{request.creatorName}</span>
-                      </p>
-                      <p className="text-xs text-muted">
-                        Кол-во: <span className="text-slate-200">{request.quantity}</span>
-                        <span className="mx-1 text-line">•</span>
-                        Цена: <span className="text-accent">{request.offeredPriceAr} ар</span>
-                      </p>
-
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void claimRequest(request.id).then((result) => setMessage(result.message));
-                            setNotificationsOpen(false);
-                          }}
-                          className="rounded-md border border-accent/35 px-2 py-1 text-xs text-accent hover:bg-accent/10"
-                        >
-                          Взяться
-                        </button>
-                        <Link
-                          href="/requests"
-                          onClick={() => setNotificationsOpen(false)}
-                          className="rounded-md border border-line px-2 py-1 text-xs text-slate-200 hover:border-slate-500"
-                        >
-                          Открыть
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-                </div>
               ) : (
-                <p className="text-xs text-muted">Новых подтверждённых покупок пока нет.</p>
+                <div className="max-h-80 space-y-3 overflow-auto pr-1">
+                  {sellerNotifications.length ? (
+                    <section>
+                      <p className="mb-1 text-[11px] uppercase tracking-[0.12em] text-muted">Входящие покупки</p>
+                      <div className="space-y-2">
+                        {sellerNotifications.slice(0, 4).map((request) => (
+                          <article key={request.id} className="rounded-lg border border-line bg-[#070b11] p-2">
+                            <p className="text-sm font-semibold text-slate-100">{request.itemName}</p>
+                            <p className="mt-1 text-xs text-muted">
+                              Покупатель: <span className="text-slate-200">{request.creatorName}</span>
+                            </p>
+                            <p className="text-xs text-muted">
+                              {request.quantity} шт • <span className="text-accent">{request.offeredPriceAr} ар</span>
+                            </p>
+
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void claimRequest(request.id).then((result) => setMessage(result.message));
+                                  setNotificationsOpen(false);
+                                }}
+                                className="rounded-md border border-accent/35 px-2 py-1 text-xs text-accent hover:bg-accent/10"
+                              >
+                                Взяться
+                              </button>
+                              <Link
+                                href="/requests"
+                                onClick={() => setNotificationsOpen(false)}
+                                className="rounded-md border border-line px-2 py-1 text-xs text-slate-200 hover:border-slate-500"
+                              >
+                                Открыть
+                              </Link>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {buyerConfirmNotifications.length ? (
+                    <section>
+                      <p className="mb-1 text-[11px] uppercase tracking-[0.12em] text-muted">Нужно подтвердить</p>
+                      <div className="space-y-2">
+                        {buyerConfirmNotifications.slice(0, 4).map((request) => (
+                          <article key={request.id} className="rounded-lg border border-line bg-[#070b11] p-2">
+                            <p className="text-sm font-semibold text-slate-100">{request.itemName}</p>
+                            <p className="mt-1 text-xs text-muted">
+                              Продавец: <span className="text-slate-200">{request.claimerName || "-"}</span>
+                            </p>
+                            <p className="text-xs text-muted">
+                              {request.quantity} шт • <span className="text-accent">{request.offeredPriceAr} ар</span>
+                            </p>
+
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void completeRequest(request.id).then((result) => setMessage(result.message));
+                                  setNotificationsOpen(false);
+                                }}
+                                className="rounded-md border border-emerald-300/40 px-2 py-1 text-xs text-emerald-300 hover:bg-emerald-400/10"
+                              >
+                                Подтвердить
+                              </button>
+                              <Link
+                                href="/requests"
+                                onClick={() => setNotificationsOpen(false)}
+                                className="rounded-md border border-line px-2 py-1 text-xs text-slate-200 hover:border-slate-500"
+                              >
+                                Открыть
+                              </Link>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {disputeNotifications.length ? (
+                    <section>
+                      <p className="mb-1 text-[11px] uppercase tracking-[0.12em] text-muted">Споры (админ)</p>
+                      <div className="space-y-2">
+                        {disputeNotifications.slice(0, 4).map((request) => (
+                          <article key={request.id} className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-2">
+                            <p className="text-sm font-semibold text-rose-200">{request.itemName}</p>
+                            <p className="mt-1 text-xs text-rose-100/80">{request.disputeComment || "Без комментария"}</p>
+                            <Link
+                              href="/requests"
+                              onClick={() => setNotificationsOpen(false)}
+                              className="mt-2 inline-flex rounded-md border border-rose-300/40 px-2 py-1 text-xs text-rose-200 hover:bg-rose-400/10"
+                            >
+                              Перейти в арбитраж
+                            </Link>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {!sellerNotifications.length &&
+                  !buyerConfirmNotifications.length &&
+                  !disputeNotifications.length ? (
+                    <p className="text-xs text-muted">Новых уведомлений пока нет.</p>
+                  ) : null}
+                </div>
               )}
             </div>
           ) : null}

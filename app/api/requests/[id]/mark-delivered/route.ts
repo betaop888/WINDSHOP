@@ -17,21 +17,21 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!existing) return fail("Заявка не найдена.", 404);
 
   if (existing.status !== RequestStatus.CLAIMED) {
-    return fail("Вернуть можно только заявку в работе.", 400);
+    return fail("Отметить сдачу можно только для заявки в работе.", 400);
   }
-  if (existing.claimerId !== user.id && !isAdmin(user)) {
-    return fail("Только исполнитель может вернуть заявку.", 403);
+
+  const permitted = existing.claimerId === user.id || isAdmin(user);
+  if (!permitted) {
+    return fail("Только исполнитель может отметить сдачу товара.", 403);
   }
 
   const updated = await prisma.purchaseRequest.update({
     where: { id: params.id },
     data: {
-      status: RequestStatus.OPEN,
-      claimerId: null,
-      sellerConfirmedAt: null,
-      buyerConfirmedAt: null,
-      disputedAt: null,
-      disputeComment: null
+      status: RequestStatus.AWAITING_BUYER_CONFIRM,
+      sellerConfirmedAt: new Date(),
+      disputeComment: null,
+      disputedAt: null
     },
     include: {
       creator: { select: { username: true } },

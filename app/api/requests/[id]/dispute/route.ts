@@ -16,22 +16,31 @@ export async function POST(request: NextRequest, { params }: Params) {
   });
   if (!existing) return fail("Заявка не найдена.", 404);
 
-  if (existing.status !== RequestStatus.CLAIMED) {
-    return fail("Вернуть можно только заявку в работе.", 400);
+  if (
+    existing.status !== RequestStatus.CLAIMED &&
+    existing.status !== RequestStatus.AWAITING_BUYER_CONFIRM
+  ) {
+    return fail("Спор можно открыть только по активной сделке.", 400);
   }
-  if (existing.claimerId !== user.id && !isAdmin(user)) {
-    return fail("Только исполнитель может вернуть заявку.", 403);
+
+  const permitted =
+    existing.creatorId === user.id || existing.claimerId === user.id || isAdmin(user);
+  if (!permitted) {
+    return fail("Недостаточно прав для открытия спора.", 403);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const reason = String((body as { reason?: string }).reason ?? "").trim();
+  if (reason.length < 3 || reason.length > 280) {
+    return fail("Причина спора: от 3 до 280 символов.", 400);
   }
 
   const updated = await prisma.purchaseRequest.update({
     where: { id: params.id },
     data: {
-      status: RequestStatus.OPEN,
-      claimerId: null,
-      sellerConfirmedAt: null,
-      buyerConfirmedAt: null,
-      disputedAt: null,
-      disputeComment: null
+      status: RequestStatus.DISPUTED,
+      disputedAt: new Date(),
+      disputeComment: reason
     },
     include: {
       creator: { select: { username: true } },

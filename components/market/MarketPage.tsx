@@ -73,7 +73,10 @@ export function MarketPage() {
     addToCart,
     claimRequest,
     releaseRequest,
+    markDeliveredRequest,
     completeRequest,
+    openDisputeRequest,
+    resolveDisputeRequest,
     cancelRequest,
     createListing,
     updateListing,
@@ -580,7 +583,15 @@ export function MarketPage() {
           currentUserRole={currentUser?.role ?? null}
           onTake={(id) => void claimRequest(id).then((x) => setMessage(x.message))}
           onRelease={(id) => void releaseRequest(id).then((x) => setMessage(x.message))}
-          onComplete={(id) => void completeRequest(id).then((x) => setMessage(x.message))}
+          onMarkDelivered={(id) => void markDeliveredRequest(id).then((x) => setMessage(x.message))}
+          onConfirmReceipt={(id) => void completeRequest(id).then((x) => setMessage(x.message))}
+          onOpenDispute={(id, reason) => void openDisputeRequest(id, reason).then((x) => setMessage(x.message))}
+          onResolveComplete={(id) =>
+            void resolveDisputeRequest(id, "complete").then((x) => setMessage(x.message))
+          }
+          onResolveCancel={(id) =>
+            void resolveDisputeRequest(id, "cancel").then((x) => setMessage(x.message))
+          }
           onCancel={(id) => void cancelRequest(id).then((x) => setMessage(x.message))}
           compact
         />

@@ -34,7 +34,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     },
     data: {
       status: RequestStatus.CLAIMED,
-      claimerId: user.id
+      claimerId: user.id,
+      sellerConfirmedAt: null,
+      buyerConfirmedAt: null,
+      disputedAt: null,
+      disputeComment: null
     }
   });
 

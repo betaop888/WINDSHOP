@@ -7,7 +7,14 @@ import { serializePurchaseRequest } from "@/lib/serializers";
 
 function statusFilter(value: string | null) {
   if (value === "all") return undefined;
-  return { in: [RequestStatus.OPEN, RequestStatus.CLAIMED] };
+  return {
+    in: [
+      RequestStatus.OPEN,
+      RequestStatus.CLAIMED,
+      RequestStatus.AWAITING_BUYER_CONFIRM,
+      RequestStatus.DISPUTED
+    ]
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -77,7 +84,11 @@ export async function POST(request: NextRequest) {
         quantity,
         offeredPriceAr,
         creatorId: user.id,
-        status: RequestStatus.OPEN
+        status: RequestStatus.OPEN,
+        sellerConfirmedAt: null,
+        buyerConfirmedAt: null,
+        disputedAt: null,
+        disputeComment: null
       },
       include: {
         creator: { select: { username: true } },
