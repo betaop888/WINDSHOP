@@ -10,7 +10,7 @@ import {
   useState
 } from "react";
 import { REQUESTS_POLL_INTERVAL_MS } from "@/lib/constants";
-import { Listing, PurchaseRequest, SessionUser } from "@/lib/types";
+import { CartItem, Listing, MarketItem, PurchaseRequest, SessionUser } from "@/lib/types";
 
 type ActionResult = { ok: boolean; message: string };
 
@@ -37,6 +37,7 @@ type AppStateContextType = {
   currentUser: SessionUser | null;
   requests: PurchaseRequest[];
   listings: Listing[];
+  cartItems: CartItem[];
   startDiscordAuth: () => void;
   logout: () => Promise<void>;
   addRequest: (input: AddRequestInput) => Promise<ActionResult>;
@@ -51,9 +52,16 @@ type AppStateContextType = {
   deleteListing: (listingId: string) => Promise<ActionResult>;
   updateMyBio: (bio: string) => Promise<ActionResult>;
   setUserBan: (username: string, ban: boolean, reason: string) => Promise<ActionResult>;
+  addToCart: (item: MarketItem, quantity: number) => ActionResult;
+  updateCartItemQuantity: (itemKey: string, quantity: number) => void;
+  removeCartItem: (itemKey: string) => void;
+  clearCart: () => void;
+  confirmCartItem: (itemKey: string) => Promise<ActionResult>;
+  checkoutCart: () => Promise<ActionResult>;
 };
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
+const CART_STORAGE_PREFIX = "wind_cart_v2";
 
 async function parseResponse<T>(response: Response): Promise<{ ok: boolean; data: T; message: string }> {
   let json: unknown = {};
@@ -71,6 +79,55 @@ async function parseResponse<T>(response: Response): Promise<{ ok: boolean; data
   };
 }
 
+function cartStorageKey(username: string) {
+  return `${CART_STORAGE_PREFIX}:${username.toLowerCase()}`;
+}
+
+function getCartItemKey(item: MarketItem) {
+  return item.listingId ? `listing:${item.listingId}` : `item:${item.id}`;
+}
+
+function marketItemToCartItem(item: MarketItem, quantity: number): CartItem {
+  return {
+    key: getCartItemKey(item),
+    itemId: item.id,
+    itemName: item.name,
+    listingId: item.listingId,
+    ownerName: item.ownerName,
+    imageUrl: item.imageUrl,
+    texture: item.texture,
+    token: item.token,
+    lotSize: item.lotSize,
+    lotLabel: item.lotLabel,
+    quantity,
+    priceAr: item.priceAr
+  };
+}
+
+function safeParseCart(raw: string): CartItem[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((entry) => entry as CartItem)
+      .filter(
+        (entry) =>
+          typeof entry?.key === "string" &&
+          typeof entry?.itemId === "string" &&
+          typeof entry?.itemName === "string" &&
+          Number.isInteger(entry?.quantity) &&
+          entry.quantity > 0 &&
+          Number.isInteger(entry?.priceAr) &&
+          entry.priceAr > 0 &&
+          Number.isInteger(entry?.lotSize) &&
+          entry.lotSize > 0
+      );
+  } catch {
+    return [];
+  }
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -78,6 +135,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const currentUsername = currentUser?.username ?? null;
 
   const startDiscordAuth = useCallback(() => {
     window.location.href = "/api/auth/discord";
@@ -133,9 +192,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [hydrated, refreshListings, refreshRequests]);
 
+  useEffect(() => {
+    if (!currentUsername) {
+      setCartItems([]);
+      return;
+    }
+
+    const key = cartStorageKey(currentUsername);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      setCartItems([]);
+      return;
+    }
+
+    setCartItems(safeParseCart(raw));
+  }, [currentUsername]);
+
+  useEffect(() => {
+    if (!currentUsername) return;
+    const key = cartStorageKey(currentUsername);
+    window.localStorage.setItem(key, JSON.stringify(cartItems));
+  }, [cartItems, currentUsername]);
+
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setCurrentUser(null);
+    setCartItems([]);
     await Promise.all([refreshRequests(), refreshListings()]);
   }, [refreshListings, refreshRequests]);
 
@@ -151,7 +233,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Заявка на покупку создана." };
+      return { ok: true, message: "Покупка подтверждена. Заявка отправлена." };
     },
     [refreshRequests]
   );
@@ -294,6 +376,120 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [refreshRequests]
   );
 
+  const addToCart = useCallback(
+    (item: MarketItem, quantity: number): ActionResult => {
+      if (!currentUser) {
+        return { ok: false, message: "Сначала войдите через Discord." };
+      }
+
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        return { ok: false, message: "Количество должно быть больше 0." };
+      }
+
+      const nextItem = marketItemToCartItem(item, quantity);
+      setCartItems((prev) => {
+        const existing = prev.find((entry) => entry.key === nextItem.key);
+        if (!existing) {
+          return [...prev, nextItem];
+        }
+
+        return prev.map((entry) =>
+          entry.key === nextItem.key
+            ? {
+                ...entry,
+                quantity: entry.quantity + quantity
+              }
+            : entry
+        );
+      });
+
+      return { ok: true, message: "Товар добавлен в корзину." };
+    },
+    [currentUser]
+  );
+
+  const updateCartItemQuantity = useCallback((itemKey: string, quantity: number) => {
+    const safeQuantity = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+
+    setCartItems((prev) =>
+      prev.map((entry) => (entry.key === itemKey ? { ...entry, quantity: safeQuantity } : entry))
+    );
+  }, []);
+
+  const removeCartItem = useCallback((itemKey: string) => {
+    setCartItems((prev) => prev.filter((entry) => entry.key !== itemKey));
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
+  const submitRequestFromCartItem = useCallback(
+    async (item: CartItem): Promise<ActionResult> => {
+      return addRequest({
+        itemId: item.itemId,
+        itemName: item.itemName,
+        listingId: item.listingId,
+        quantity: item.quantity * item.lotSize,
+        offeredPriceAr: item.quantity * item.priceAr
+      });
+    },
+    [addRequest]
+  );
+
+  const confirmCartItem = useCallback(
+    async (itemKey: string): Promise<ActionResult> => {
+      const item = cartItems.find((entry) => entry.key === itemKey);
+      if (!item) return { ok: false, message: "Товар не найден в корзине." };
+
+      const result = await submitRequestFromCartItem(item);
+      if (!result.ok) return result;
+
+      setCartItems((prev) => prev.filter((entry) => entry.key !== itemKey));
+      return { ok: true, message: "Покупка подтверждена. Продавец получил уведомление." };
+    },
+    [cartItems, submitRequestFromCartItem]
+  );
+
+  const checkoutCart = useCallback(async (): Promise<ActionResult> => {
+    if (!cartItems.length) {
+      return { ok: false, message: "Корзина пуста." };
+    }
+
+    let success = 0;
+    let failed = 0;
+    const successfulKeys: string[] = [];
+    let firstError = "";
+
+    for (const item of cartItems) {
+      const result = await submitRequestFromCartItem(item);
+      if (result.ok) {
+        success += 1;
+        successfulKeys.push(item.key);
+      } else {
+        failed += 1;
+        if (!firstError) firstError = result.message;
+      }
+    }
+
+    if (successfulKeys.length) {
+      setCartItems((prev) => prev.filter((entry) => !successfulKeys.includes(entry.key)));
+    }
+
+    if (!success) {
+      return { ok: false, message: firstError || "Не удалось подтвердить покупки." };
+    }
+
+    if (failed) {
+      return {
+        ok: true,
+        message: `Подтверждено ${success}, с ошибкой ${failed}. ${firstError}`
+      };
+    }
+
+    return { ok: true, message: `Подтверждено покупок: ${success}. Продавцы получили уведомления.` };
+  }, [cartItems, submitRequestFromCartItem]);
+
   const value = useMemo<AppStateContextType>(
     () => ({
       hydrated,
@@ -302,6 +498,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       currentUser,
       requests,
       listings,
+      cartItems,
       startDiscordAuth,
       logout,
       addRequest,
@@ -315,7 +512,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateListing,
       deleteListing,
       updateMyBio,
-      setUserBan
+      setUserBan,
+      addToCart,
+      updateCartItemQuantity,
+      removeCartItem,
+      clearCart,
+      confirmCartItem,
+      checkoutCart
     }),
     [
       hydrated,
@@ -324,6 +527,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       currentUser,
       requests,
       listings,
+      cartItems,
       startDiscordAuth,
       logout,
       addRequest,
@@ -337,7 +541,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateListing,
       deleteListing,
       updateMyBio,
-      setUserBan
+      setUserBan,
+      addToCart,
+      updateCartItemQuantity,
+      removeCartItem,
+      clearCart,
+      confirmCartItem,
+      checkoutCart
     ]
   );
 

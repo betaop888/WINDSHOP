@@ -30,6 +30,21 @@ export interface MarketItem {
   ownerName?: string;
 }
 
+export interface CartItem {
+  key: string;
+  itemId: string;
+  itemName: string;
+  listingId?: string;
+  ownerName?: string;
+  imageUrl?: string;
+  texture?: string;
+  token: string;
+  lotSize: number;
+  lotLabel: string;
+  quantity: number;
+  priceAr: number;
+}
+
 export type RequestStatus = "OPEN" | "CLAIMED" | "COMPLETED" | "CANCELLED";
 export type UserRole = "USER" | "ADMIN";
 

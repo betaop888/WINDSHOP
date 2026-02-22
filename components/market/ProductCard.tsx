@@ -11,11 +11,9 @@ type ProductCardProps = {
   canManage?: boolean;
   onEdit?: (item: MarketItem) => void;
   onDelete?: (item: MarketItem) => void;
-  onCreateRequest: (payload: {
+  onAddToCart: (payload: {
     item: MarketItem;
     quantity: number;
-    offeredPriceAr: number;
-    listingId?: string;
   }) => void;
 };
 
@@ -24,7 +22,7 @@ export function ProductCard({
   canManage = false,
   onEdit,
   onDelete,
-  onCreateRequest
+  onAddToCart
 }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1);
   const [brokenImage, setBrokenImage] = useState(false);
@@ -35,8 +33,6 @@ export function ProductCard({
     if (item.texture) return `${ITEM_TEXTURE_BASE}/${encodeURIComponent(item.texture)}.png`;
     return "";
   }, [item.imageUrl, item.texture]);
-
-  const offeredPrice = useMemo(() => item.priceAr * quantity, [item.priceAr, quantity]);
 
   return (
     <article className="rounded-2xl border border-line bg-panel/95 p-3 shadow-card">
@@ -126,17 +122,15 @@ export function ProductCard({
         <button
           type="button"
           onClick={() =>
-            onCreateRequest({
+            onAddToCart({
               item,
-              quantity,
-              offeredPriceAr: offeredPrice,
-              listingId: item.listingId
+              quantity
             })
           }
           className="inline-flex h-fit items-center justify-center gap-2 self-end rounded-lg border border-accent/40 bg-gradient-to-b from-accent to-accentStrong px-4 py-2 text-sm font-bold text-white transition hover:from-[#a6c6ff] hover:to-[#5f8ef5]"
         >
           <ShoppingCart size={15} />
-          Купить
+          В корзину
         </button>
       </div>
     </article>

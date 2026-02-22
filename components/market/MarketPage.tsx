@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, ShoppingCart, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { ProductCard } from "@/components/market/ProductCard";
 import { useAppState } from "@/components/providers/AppStateProvider";
@@ -67,9 +67,10 @@ export function MarketPage() {
     currentUser,
     requests,
     listings,
+    cartItems,
     loadingRequests,
     loadingListings,
-    addRequest,
+    addToCart,
     claimRequest,
     releaseRequest,
     completeRequest,
@@ -211,11 +212,9 @@ export function MarketPage() {
     setMessage(result.message);
   }
 
-  async function handleCreateRequest(payload: {
+  function handleAddToCart(payload: {
     item: MarketItem;
     quantity: number;
-    offeredPriceAr: number;
-    listingId?: string;
   }) {
     if (!currentUser) {
       setMessage("Сначала войдите через Discord.");
@@ -223,13 +222,7 @@ export function MarketPage() {
       return;
     }
 
-    const result = await addRequest({
-      itemId: payload.item.id,
-      itemName: payload.item.name,
-      quantity: payload.quantity * payload.item.lotSize,
-      offeredPriceAr: payload.offeredPriceAr,
-      listingId: payload.listingId
-    });
+    const result = addToCart(payload.item, payload.quantity);
     setMessage(result.message);
   }
 
@@ -376,14 +369,26 @@ export function MarketPage() {
           </label>
         </div>
 
-        <button
-          type="button"
-          onClick={openCreateEditor}
-          className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-gradient-to-b from-accent to-accentStrong px-4 py-2 text-sm font-semibold text-white transition hover:from-[#a6c6ff] hover:to-[#5f8ef5]"
-        >
-          <Plus size={16} />
-          Добавить товар
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/cart"
+            className="inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+          >
+            <ShoppingCart size={15} />
+            Корзина
+            <span className="rounded-full border border-line px-2 py-0.5 text-xs text-accent">
+              {cartItems.length}
+            </span>
+          </Link>
+          <button
+            type="button"
+            onClick={openCreateEditor}
+            className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-gradient-to-b from-accent to-accentStrong px-4 py-2 text-sm font-semibold text-white transition hover:from-[#a6c6ff] hover:to-[#5f8ef5]"
+          >
+            <Plus size={16} />
+            Добавить товар
+          </button>
+        </div>
       </div>
 
       {isEditorOpen ? (
@@ -543,8 +548,8 @@ export function MarketPage() {
               onDelete={(entry) => {
                 void removeListing(entry);
               }}
-              onCreateRequest={(payload) => {
-                void handleCreateRequest(payload);
+              onAddToCart={(payload) => {
+                handleAddToCart(payload);
               }}
             />
           );
