@@ -45,6 +45,7 @@ SESSION_COOKIE_NAME="wind_session"
 DISCORD_CLIENT_ID="..."
 DISCORD_CLIENT_SECRET="..."
 DISCORD_REDIRECT_URI="http://localhost:3000/api/auth/discord/callback"
+# PRISMA_DB_PUSH_ACCEPT_DATA_LOSS="false"
 ```
 
 Синхронизация схемы БД:
@@ -69,10 +70,12 @@ npm run dev
    - `DISCORD_CLIENT_ID`
    - `DISCORD_CLIENT_SECRET`
    - `DISCORD_REDIRECT_URI` (например `https://your-domain.vercel.app/api/auth/discord/callback`)
+   - `PRISMA_DB_PUSH_ACCEPT_DATA_LOSS` (опционально: `true`/`false`)
 4. Деплой.
 
 `buildCommand` использует `npm run db:push && npm run build`.
 Если `DATABASE_URL` не задан, `db:push` будет пропущен (с предупреждением), чтобы сборка не падала.
+На Vercel `db:push` по умолчанию запускается с `--accept-data-loss` (если переменная не задана).
 
 ## Основные маршруты
 

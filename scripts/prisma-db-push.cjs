@@ -8,6 +8,11 @@ env.DATABASE_URL =
   env.POSTGRES_URL ||
   "";
 
+function isTruthy(value) {
+  if (typeof value !== "string") return false;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
 if (!env.DATABASE_URL) {
   console.warn(
     [
@@ -20,7 +25,18 @@ if (!env.DATABASE_URL) {
 }
 
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
-const result = spawnSync(npxCommand, ["prisma", "db", "push"], {
+const hasExplicitFlag = typeof env.PRISMA_DB_PUSH_ACCEPT_DATA_LOSS === "string";
+const acceptDataLoss = hasExplicitFlag
+  ? isTruthy(env.PRISMA_DB_PUSH_ACCEPT_DATA_LOSS)
+  : env.VERCEL === "1";
+
+const prismaArgs = ["prisma", "db", "push"];
+if (acceptDataLoss) {
+  prismaArgs.push("--accept-data-loss");
+  console.log("Prisma db push: --accept-data-loss enabled.");
+}
+
+const result = spawnSync(npxCommand, prismaArgs, {
   stdio: "inherit",
   env
 });
