@@ -1,4 +1,4 @@
-import { MarketItem } from "@/lib/types";
+﻿import { MarketItem } from "@/lib/types";
 
 export const SOURCE_DATA_URL = "https://betaop888.github.io/wind.github.io/data/items.json";
 
@@ -24,76 +24,50 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "ADS",
     name: "Аренда баннера",
     category: "Баннеры",
-    description: "Размещение баннера на витрине магазина на 1 сутки.",
+    description: "Размещение баннера на витрине магазина на 24 часа.",
     lotSize: 1,
     lotLabel: "1 сутки",
     unitLabel: "сутки",
     priceAr: 8
   },
   {
-    id: "banner-white",
-    sourceKey: "flower_banner_pattern",
-    texture: "flower_banner_pattern",
+    id: "banner-pattern-flow",
+    sourceKey: "flow_banner_pattern",
+    texture: "flow_banner_pattern",
     token: "BNR",
-    name: "Баннер (белый стиль)",
+    name: "Узор флага: Flow",
     category: "Баннеры",
-    description: "Лот для оформления магазинов и клановых точек.",
-    lotSize: 16,
-    lotLabel: "16 шт",
-    unitLabel: "шт",
-    priceAr: 1
-  },
-  {
-    id: "banner-red",
-    sourceKey: "creeper_banner_pattern",
-    texture: "creeper_banner_pattern",
-    token: "BNR",
-    name: "Баннер (красный стиль)",
-    category: "Баннеры",
-    description: "Яркий баннер для вывесок и PvP-лотов.",
-    lotSize: 16,
-    lotLabel: "16 шт",
-    unitLabel: "шт",
-    priceAr: 1
-  },
-  {
-    id: "banner-blue",
-    sourceKey: "globe_banner_pattern",
-    texture: "globe_banner_pattern",
-    token: "BNR",
-    name: "Баннер (синий стиль)",
-    category: "Баннеры",
-    description: "Подходит для морской, небесной и техно-стилистики.",
-    lotSize: 16,
-    lotLabel: "16 шт",
-    unitLabel: "шт",
-    priceAr: 1
-  },
-  {
-    id: "banner-green",
-    sourceKey: "guster_banner_pattern",
-    texture: "guster_banner_pattern",
-    token: "BNR",
-    name: "Баннер (зелёный стиль)",
-    category: "Баннеры",
-    description: "Часто используют для ферм и природных зон.",
-    lotSize: 16,
-    lotLabel: "16 шт",
-    unitLabel: "шт",
-    priceAr: 1
-  },
-  {
-    id: "book-enchanted",
-    sourceKey: "enchanted_book",
-    texture: "enchanted_book",
-    token: "BOOK",
-    name: "Зачарованная книга",
-    category: "Зачарованные книги",
-    description: "Базовая лотовая позиция чар-книг.",
+    description: "Яркий паттерн для рекламы клана или магазина.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
-    priceAr: 6
+    priceAr: 5
+  },
+  {
+    id: "banner-pattern-flower",
+    sourceKey: "flower_banner_pattern",
+    texture: "flower_banner_pattern",
+    token: "BNR",
+    name: "Узор флага: Flower",
+    category: "Баннеры",
+    description: "Декоративный баннерный узор для торговых точек.",
+    lotSize: 1,
+    lotLabel: "1 шт",
+    unitLabel: "шт",
+    priceAr: 5
+  },
+  {
+    id: "banner-pattern-creeper",
+    sourceKey: "creeper_banner_pattern",
+    texture: "creeper_banner_pattern",
+    token: "BNR",
+    name: "Узор флага: Creeper",
+    category: "Баннеры",
+    description: "Популярный PvP-стиль для агрессивных вывесок.",
+    lotSize: 1,
+    lotLabel: "1 шт",
+    unitLabel: "шт",
+    priceAr: 5
   },
   {
     id: "book-mending",
@@ -102,7 +76,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "BOOK",
     name: "Книга: Починка",
     category: "Зачарованные книги",
-    description: "Ключевая книга для долгой службы вещей.",
+    description: "Топ-зачарование для долговечной экипировки.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -115,7 +89,20 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "BOOK",
     name: "Книга: Шёлковое касание",
     category: "Зачарованные книги",
-    description: "Для добычи блоков без разрушения формы.",
+    description: "Добыча блоков без разрушения исходной формы.",
+    lotSize: 1,
+    lotLabel: "1 шт",
+    unitLabel: "шт",
+    priceAr: 6
+  },
+  {
+    id: "book-efficiency",
+    sourceKey: "enchanted_book",
+    texture: "enchanted_book",
+    token: "BOOK",
+    name: "Книга: Эффективность",
+    category: "Зачарованные книги",
+    description: "Ускоряет добычу руды и строительство ферм.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -128,7 +115,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазный меч",
     category: "Алмазная броня и инструменты",
-    description: "Базовое оружие для боёв и рейдов.",
+    description: "Надёжное оружие для рейдов и дуэлей.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -141,7 +128,20 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазная кирка",
     category: "Алмазная броня и инструменты",
-    description: "Быстрая добыча руды и редких блоков.",
+    description: "Быстрая добыча и база для топ-зачарований.",
+    lotSize: 1,
+    lotLabel: "1 шт",
+    unitLabel: "шт",
+    priceAr: 4
+  },
+  {
+    id: "diamond-axe",
+    sourceKey: "diamond_axe",
+    texture: "diamond_axe",
+    token: "DIA",
+    name: "Алмазный топор",
+    category: "Алмазная броня и инструменты",
+    description: "Универсальный инструмент и мощный PvP-слот.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -154,7 +154,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазный шлем",
     category: "Алмазная броня и инструменты",
-    description: "Часть алмазного комплекта защиты.",
+    description: "Элемент комплекта алмазной защиты.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -167,7 +167,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазный нагрудник",
     category: "Алмазная броня и инструменты",
-    description: "Наиболее важный защитный слот алмазки.",
+    description: "Основной защитный слот для боевых выходов.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -180,7 +180,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазные поножи",
     category: "Алмазная броня и инструменты",
-    description: "Цена и лот по прайсу источника.",
+    description: "Часть алмазного сета по рыночной цене.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -193,7 +193,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "DIA",
     name: "Алмазные ботинки",
     category: "Алмазная броня и инструменты",
-    description: "Для чар на падение и скорость.",
+    description: "Для зачарований на скорость и падение.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -206,7 +206,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовый слиток",
     category: "Незеритовые вещи",
-    description: "Материал для крафта и апгрейда незерита.",
+    description: "Редкий ресурс для улучшения алмазных предметов.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -219,7 +219,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовый меч",
     category: "Незеритовые вещи",
-    description: "Топовый урон и высокая прочность.",
+    description: "Максимальный урон и прочность для эндгейма.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -232,7 +232,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовая кирка",
     category: "Незеритовые вещи",
-    description: "Топ-уровень для быстрой добычи.",
+    description: "Топ-инструмент для добычи и фарма ресурсов.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -245,7 +245,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовый шлем",
     category: "Незеритовые вещи",
-    description: "Эндгейм защита для PvP и рейдов.",
+    description: "Часть полного сета незеритовой брони.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -258,7 +258,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовый нагрудник",
     category: "Незеритовые вещи",
-    description: "Ключевая часть незерит-сета.",
+    description: "Ключевой слот для максимальной защиты.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -271,7 +271,7 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовые поножи",
     category: "Незеритовые вещи",
-    description: "Стабильная цена по экономике Wind.",
+    description: "Боевая экипировка высокого класса.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
@@ -284,13 +284,24 @@ export const BASE_MARKET_ITEMS: MarketItem[] = [
     token: "NTH",
     name: "Незеритовые ботинки",
     category: "Незеритовые вещи",
-    description: "Высокая стойкость для опасных вылазок.",
+    description: "Финальный элемент незеритового комплекта.",
     lotSize: 1,
     lotLabel: "1 шт",
     unitLabel: "шт",
     priceAr: 18
   }
 ];
+
+function resolveLotLabel(source: SourceItem, fallback: string) {
+  if (!source.trade_label) return fallback;
+
+  if (/\d/.test(source.trade_label)) {
+    return source.trade_label;
+  }
+
+  const count = Number.isFinite(source.trade_count) && source.trade_count > 0 ? source.trade_count : 1;
+  return `${count} ${source.trade_label}`;
+}
 
 export async function fetchSourceItems(): Promise<SourceItem[]> {
   const response = await fetch(SOURCE_DATA_URL, { cache: "no-store" });
@@ -310,14 +321,15 @@ export function mergeItemsWithSource(sourceItems: SourceItem[]): MarketItem[] {
     const source = byKey.get(item.sourceKey);
     if (!source) return item;
 
-    const isDailyBannerRent = item.id === "banner-rent";
-    if (isDailyBannerRent) return item;
+    if (item.id === "banner-rent") {
+      return item;
+    }
 
     return {
       ...item,
-      priceAr: Number.isFinite(source.price_ars) ? source.price_ars : item.priceAr,
-      lotSize: Number.isFinite(source.trade_count) ? source.trade_count : item.lotSize,
-      lotLabel: source.trade_label ? `${source.trade_label}` : item.lotLabel
+      priceAr: Number.isFinite(source.price_ars) && source.price_ars > 0 ? source.price_ars : item.priceAr,
+      lotSize: Number.isFinite(source.trade_count) && source.trade_count > 0 ? source.trade_count : item.lotSize,
+      lotLabel: resolveLotLabel(source, item.lotLabel)
     };
   });
 }

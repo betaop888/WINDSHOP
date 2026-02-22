@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 enum RequestStatus {
   OPEN
   CLAIMED
@@ -15,15 +20,28 @@ enum RequestStatus {
 }
 
 model User {
-  id              String            @id @default(cuid())
-  username        String            @unique
-  passwordHash    String
-  bio             String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  sessions        Session[]
-  createdRequests PurchaseRequest[] @relation("CreatedBy")
-  claimedRequests PurchaseRequest[] @relation("ClaimedBy")
+  id                String            @id @default(cuid())
+  username          String            @unique
+  displayName       String?
+  discordId         String?           @unique
+  discordAvatar     String?
+  passwordHash      String?
+  role              UserRole          @default(USER)
+  isBanned          Boolean           @default(false)
+  banReason         String?
+  bannedAt          DateTime?
+  bio               String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessions          Session[]
+  createdRequests   PurchaseRequest[] @relation("CreatedBy")
+  claimedRequests   PurchaseRequest[] @relation("ClaimedBy")
+  preferredRequests PurchaseRequest[] @relation("PreferredSeller")
+  listings          Listing[]
+  reviewsReceived   Review[]          @relation("ReviewTarget")
+  reviewsWritten    Review[]          @relation("ReviewAuthor")
+
+  @@index([role, isBanned])
 }
 
 model Session {
@@ -38,21 +56,60 @@ model Session {
   @@index([expiresAt])
 }
 
+model Listing {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String
+  priceAr     Int
+  category    String
+  isArchived  Boolean           @default(false)
+  ownerId     String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  owner       User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  requests    PurchaseRequest[]
+
+  @@index([ownerId, createdAt])
+  @@index([isArchived, createdAt])
+}
+
 model PurchaseRequest {
-  id             String        @id @default(cuid())
-  itemId         String
-  itemName       String
-  quantity       Int
-  offeredPriceAr Int
-  status         RequestStatus @default(OPEN)
-  creatorId      String
-  claimerId      String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  creator        User          @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
-  claimer        User?         @relation("ClaimedBy", fields: [claimerId], references: [id], onDelete: SetNull)
+  id               String        @id @default(cuid())
+  itemId           String
+  itemName         String
+  quantity         Int
+  offeredPriceAr   Int
+  status           RequestStatus @default(OPEN)
+  creatorId        String
+  claimerId        String?
+  listingId        String?
+  preferredSellerId String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  creator          User          @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
+  claimer          User?         @relation("ClaimedBy", fields: [claimerId], references: [id], onDelete: SetNull)
+  preferredSeller  User?         @relation("PreferredSeller", fields: [preferredSellerId], references: [id], onDelete: SetNull)
+  listing          Listing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([creatorId])
   @@index([claimerId])
+  @@index([listingId])
+  @@index([preferredSellerId])
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  targetUserId String
+  authorId     String
+  rating       Int
+  comment      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  targetUser   User     @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  author       User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([targetUserId, authorId])
+  @@index([targetUserId, createdAt])
 }

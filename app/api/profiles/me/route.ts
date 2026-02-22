@@ -1,16 +1,20 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { getAuthUserByRequest } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 
 export async function GET(request: NextRequest) {
   const user = await getAuthUserByRequest(request);
-  if (!user) return fail("Unauthorized.", 401);
+  if (!user) return fail("Требуется авторизация.", 401);
 
   return ok({
     profile: {
       username: user.username,
+      displayName: user.displayName,
       bio: user.bio,
+      role: user.role,
+      isBanned: user.isBanned,
+      banReason: user.banReason,
       createdAt: user.createdAt.toISOString()
     }
   });
@@ -18,13 +22,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const user = await getAuthUserByRequest(request);
-  if (!user) return fail("Unauthorized.", 401);
+  if (!user) return fail("Требуется авторизация.", 401);
 
   try {
     const body = await request.json();
     const bio = String(body?.bio ?? "").trim();
     if (bio.length > 180) {
-      return fail("Bio must be 180 characters or less.", 400);
+      return fail("Bio не должно превышать 180 символов.", 400);
     }
 
     const updated = await prisma.user.update({
@@ -35,11 +39,15 @@ export async function PATCH(request: NextRequest) {
     return ok({
       profile: {
         username: updated.username,
+        displayName: updated.displayName,
         bio: updated.bio,
+        role: updated.role,
+        isBanned: updated.isBanned,
+        banReason: updated.banReason,
         createdAt: updated.createdAt.toISOString()
       }
     });
   } catch {
-    return fail("Unexpected server error.", 500);
+    return fail("Внутренняя ошибка сервера.", 500);
   }
 }

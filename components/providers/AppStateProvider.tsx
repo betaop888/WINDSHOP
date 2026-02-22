@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   ReactNode,
@@ -10,41 +10,47 @@ import {
   useState
 } from "react";
 import { REQUESTS_POLL_INTERVAL_MS } from "@/lib/constants";
-import { PurchaseRequest } from "@/lib/types";
+import { Listing, PurchaseRequest, SessionUser } from "@/lib/types";
 
-type AuthResult = { ok: boolean; message: string };
+type ActionResult = { ok: boolean; message: string };
 
 type AddRequestInput = {
   itemId: string;
   itemName: string;
+  listingId?: string;
   quantity: number;
   offeredPriceAr: number;
 };
 
-type SessionUser = {
-  username: string;
-  bio: string | null;
+type ListingInput = {
+  title: string;
+  description: string;
+  imageUrl: string;
+  priceAr: number;
+  category: string;
 };
 
 type AppStateContextType = {
   hydrated: boolean;
   loadingRequests: boolean;
+  loadingListings: boolean;
   currentUser: SessionUser | null;
   requests: PurchaseRequest[];
-  login: (username: string, password: string) => Promise<AuthResult>;
-  register: (
-    username: string,
-    password: string,
-    repeatPassword: string
-  ) => Promise<AuthResult>;
+  listings: Listing[];
+  startDiscordAuth: () => void;
   logout: () => Promise<void>;
-  addRequest: (input: AddRequestInput) => Promise<AuthResult>;
-  claimRequest: (requestId: string) => Promise<AuthResult>;
-  releaseRequest: (requestId: string) => Promise<AuthResult>;
-  completeRequest: (requestId: string) => Promise<AuthResult>;
-  cancelRequest: (requestId: string) => Promise<AuthResult>;
+  addRequest: (input: AddRequestInput) => Promise<ActionResult>;
+  claimRequest: (requestId: string) => Promise<ActionResult>;
+  releaseRequest: (requestId: string) => Promise<ActionResult>;
+  completeRequest: (requestId: string) => Promise<ActionResult>;
+  cancelRequest: (requestId: string) => Promise<ActionResult>;
   refreshRequests: () => Promise<void>;
-  updateMyBio: (bio: string) => Promise<AuthResult>;
+  refreshListings: () => Promise<void>;
+  createListing: (input: ListingInput) => Promise<ActionResult>;
+  updateListing: (listingId: string, input: ListingInput) => Promise<ActionResult>;
+  deleteListing: (listingId: string) => Promise<ActionResult>;
+  updateMyBio: (bio: string) => Promise<ActionResult>;
+  setUserBan: (username: string, ban: boolean, reason: string) => Promise<ActionResult>;
 };
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
@@ -58,20 +64,24 @@ async function parseResponse<T>(response: Response): Promise<{ ok: boolean; data
   }
 
   const maybeMessage = (json as { message?: string })?.message;
-  const message = maybeMessage || (response.ok ? "OK" : "Request failed.");
-
   return {
     ok: response.ok,
     data: json as T,
-    message
+    message: maybeMessage || (response.ok ? "OK" : "Ошибка запроса")
   };
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [loadingListings, setLoadingListings] = useState(false);
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
+
+  const startDiscordAuth = useCallback(() => {
+    window.location.href = "/api/auth/discord";
+  }, []);
 
   const refreshSession = useCallback(async () => {
     const response = await fetch("/api/auth/me", { method: "GET" });
@@ -92,64 +102,45 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshListings = useCallback(async () => {
+    setLoadingListings(true);
+    try {
+      const response = await fetch("/api/listings", { method: "GET" });
+      const parsed = await parseResponse<{ listings: Listing[] }>(response);
+      if (parsed.ok) {
+        setListings(parsed.data.listings ?? []);
+      }
+    } finally {
+      setLoadingListings(false);
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
-      await Promise.all([refreshSession(), refreshRequests()]);
+      await Promise.all([refreshSession(), refreshRequests(), refreshListings()]);
       setHydrated(true);
     })();
-  }, [refreshRequests, refreshSession]);
+  }, [refreshListings, refreshRequests, refreshSession]);
 
   useEffect(() => {
     if (!hydrated) return;
 
     const timer = setInterval(() => {
       void refreshRequests();
+      void refreshListings();
     }, REQUESTS_POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [hydrated, refreshRequests]);
-
-  const login = useCallback(async (username: string, password: string): Promise<AuthResult> => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
-    const parsed = await parseResponse<{ user?: SessionUser }>(response);
-    if (!parsed.ok) return { ok: false, message: parsed.message };
-
-    setCurrentUser(parsed.data.user ?? null);
-    await refreshRequests();
-    return { ok: true, message: "Logged in successfully." };
-  }, [refreshRequests]);
-
-  const register = useCallback(
-    async (username: string, password: string, repeatPassword: string): Promise<AuthResult> => {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, repeatPassword })
-      });
-
-      const parsed = await parseResponse<{ user?: SessionUser }>(response);
-      if (!parsed.ok) return { ok: false, message: parsed.message };
-
-      setCurrentUser(parsed.data.user ?? null);
-      await refreshRequests();
-      return { ok: true, message: "Account created successfully." };
-    },
-    [refreshRequests]
-  );
+  }, [hydrated, refreshListings, refreshRequests]);
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setCurrentUser(null);
-    await refreshRequests();
-  }, [refreshRequests]);
+    await Promise.all([refreshRequests(), refreshListings()]);
+  }, [refreshListings, refreshRequests]);
 
   const addRequest = useCallback(
-    async (input: AddRequestInput): Promise<AuthResult> => {
+    async (input: AddRequestInput): Promise<ActionResult> => {
       const response = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,13 +151,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Purchase request created." };
+      return { ok: true, message: "Заявка на покупку создана." };
     },
     [refreshRequests]
   );
 
   const claimRequest = useCallback(
-    async (requestId: string): Promise<AuthResult> => {
+    async (requestId: string): Promise<ActionResult> => {
       const response = await fetch(`/api/requests/${requestId}/claim`, {
         method: "POST"
       });
@@ -174,13 +165,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Request taken." };
+      return { ok: true, message: "Вы взяли заявку в работу." };
     },
     [refreshRequests]
   );
 
   const releaseRequest = useCallback(
-    async (requestId: string): Promise<AuthResult> => {
+    async (requestId: string): Promise<ActionResult> => {
       const response = await fetch(`/api/requests/${requestId}/release`, {
         method: "POST"
       });
@@ -188,13 +179,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Request released back to market." };
+      return { ok: true, message: "Заявка возвращена в общий список." };
     },
     [refreshRequests]
   );
 
   const completeRequest = useCallback(
-    async (requestId: string): Promise<AuthResult> => {
+    async (requestId: string): Promise<ActionResult> => {
       const response = await fetch(`/api/requests/${requestId}/complete`, {
         method: "POST"
       });
@@ -202,13 +193,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Request marked as completed." };
+      return { ok: true, message: "Сделка отмечена как успешная." };
     },
     [refreshRequests]
   );
 
   const cancelRequest = useCallback(
-    async (requestId: string): Promise<AuthResult> => {
+    async (requestId: string): Promise<ActionResult> => {
       const response = await fetch(`/api/requests/${requestId}/cancel`, {
         method: "POST"
       });
@@ -216,12 +207,58 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!parsed.ok) return { ok: false, message: parsed.message };
 
       await refreshRequests();
-      return { ok: true, message: "Request cancelled." };
+      return { ok: true, message: "Заявка отменена." };
     },
     [refreshRequests]
   );
 
-  const updateMyBio = useCallback(async (bio: string): Promise<AuthResult> => {
+  const createListing = useCallback(
+    async (input: ListingInput): Promise<ActionResult> => {
+      const response = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input)
+      });
+      const parsed = await parseResponse<{ listing?: Listing }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshListings();
+      return { ok: true, message: "Товар добавлен в маркетплейс." };
+    },
+    [refreshListings]
+  );
+
+  const updateListing = useCallback(
+    async (listingId: string, input: ListingInput): Promise<ActionResult> => {
+      const response = await fetch(`/api/listings/${listingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input)
+      });
+      const parsed = await parseResponse<{ listing?: Listing }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshListings();
+      return { ok: true, message: "Товар обновлён." };
+    },
+    [refreshListings]
+  );
+
+  const deleteListing = useCallback(
+    async (listingId: string): Promise<ActionResult> => {
+      const response = await fetch(`/api/listings/${listingId}`, {
+        method: "DELETE"
+      });
+      const parsed = await parseResponse<{ ok?: boolean }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshListings();
+      return { ok: true, message: "Товар удалён." };
+    },
+    [refreshListings]
+  );
+
+  const updateMyBio = useCallback(async (bio: string): Promise<ActionResult> => {
     const response = await fetch("/api/profiles/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -232,20 +269,40 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!parsed.ok) return { ok: false, message: parsed.message };
 
     if (parsed.data.profile) {
-      setCurrentUser((prev) => (prev ? { ...prev, bio: parsed.data.profile?.bio ?? null } : prev));
+      setCurrentUser(parsed.data.profile);
     }
 
-    return { ok: true, message: "Profile updated." };
+    return { ok: true, message: "Профиль обновлён." };
   }, []);
+
+  const setUserBan = useCallback(
+    async (username: string, ban: boolean, reason: string): Promise<ActionResult> => {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(username)}/ban`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ban, reason })
+      });
+      const parsed = await parseResponse<{ user?: unknown }>(response);
+      if (!parsed.ok) return { ok: false, message: parsed.message };
+
+      await refreshRequests();
+      return {
+        ok: true,
+        message: ban ? "Пользователь заблокирован." : "Блокировка снята."
+      };
+    },
+    [refreshRequests]
+  );
 
   const value = useMemo<AppStateContextType>(
     () => ({
       hydrated,
       loadingRequests,
+      loadingListings,
       currentUser,
       requests,
-      login,
-      register,
+      listings,
+      startDiscordAuth,
       logout,
       addRequest,
       claimRequest,
@@ -253,15 +310,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       completeRequest,
       cancelRequest,
       refreshRequests,
-      updateMyBio
+      refreshListings,
+      createListing,
+      updateListing,
+      deleteListing,
+      updateMyBio,
+      setUserBan
     }),
     [
       hydrated,
       loadingRequests,
+      loadingListings,
       currentUser,
       requests,
-      login,
-      register,
+      listings,
+      startDiscordAuth,
       logout,
       addRequest,
       claimRequest,
@@ -269,7 +332,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       completeRequest,
       cancelRequest,
       refreshRequests,
-      updateMyBio
+      refreshListings,
+      createListing,
+      updateListing,
+      deleteListing,
+      updateMyBio,
+      setUserBan
     ]
   );
 
@@ -279,7 +347,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 export function useAppState() {
   const context = useContext(AppStateContext);
   if (!context) {
-    throw new Error("useAppState must be used inside AppStateProvider");
+    throw new Error("useAppState должен использоваться внутри AppStateProvider");
   }
   return context;
 }

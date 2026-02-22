@@ -1,14 +1,27 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ClipboardList, House, LogOut, UserRound } from "lucide-react";
+import {
+  Bell,
+  ClipboardList,
+  House,
+  LogOut,
+  Shield,
+  ShoppingCart,
+  UserRound
+} from "lucide-react";
 import { useAppState } from "@/components/providers/AppStateProvider";
 
-const navItems = [
-  { href: "/", label: "Market", icon: House },
-  { href: "/requests", label: "Active Requests", icon: ClipboardList },
-  { href: "/login", label: "Auth", icon: UserRound }
+const guestNavItems = [
+  { href: "/", label: "Маркет", icon: House },
+  { href: "/requests", label: "Заявки", icon: ClipboardList },
+  { href: "/login", label: "Вход", icon: UserRound }
+];
+
+const userNavItems = [
+  { href: "/", label: "Маркет", icon: ShoppingCart },
+  { href: "/requests", label: "Заявки", icon: ClipboardList }
 ];
 
 function navClass(isActive: boolean) {
@@ -23,6 +36,7 @@ function navClass(isActive: boolean) {
 export function Header() {
   const pathname = usePathname();
   const { currentUser, logout } = useAppState();
+  const navItems = currentUser ? userNavItems : guestNavItems;
 
   return (
     <header className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-start md:justify-between">
@@ -30,7 +44,7 @@ export function Header() {
         <div className="h-9 w-16 rounded-sm bg-slate-300" />
         <div>
           <p className="font-display text-sm tracking-[0.14em] text-white md:text-base">WIND SHOP</p>
-          <p className="text-xs text-muted">Currency: AR (Diamond Ore)</p>
+          <p className="text-xs text-muted">Валюта: ары (алмазная руда)</p>
         </div>
       </div>
 
@@ -49,7 +63,7 @@ export function Header() {
           {currentUser ? (
             <Link
               href={`/profile/${encodeURIComponent(currentUser.username)}`}
-              title="Profile"
+              title="Профиль"
               className={navClass(pathname.startsWith("/profile/"))}
             >
               <UserRound size={17} strokeWidth={1.9} />
@@ -58,23 +72,34 @@ export function Header() {
 
           <button
             type="button"
-            title="Notifications"
+            title="Уведомления"
             className="grid h-9 w-9 place-items-center rounded-lg border border-transparent text-slate-200 hover:bg-white/5"
-            aria-label="Notifications"
+            aria-label="Уведомления"
           >
             <Bell size={17} strokeWidth={1.9} />
           </button>
         </nav>
 
         <p className="text-xs text-muted">
-          Player: <span className="font-semibold text-slate-100">{currentUser?.username ?? "Guest"}</span>
+          Игрок:{" "}
+          <span className="font-semibold text-slate-100">
+            {currentUser?.displayName || currentUser?.username || "Гость"}
+          </span>
+
+          {currentUser?.role === "ADMIN" ? (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-300/40 px-2 py-0.5 text-[11px] text-amber-300">
+              <Shield size={11} />
+              Админ
+            </span>
+          ) : null}
+
           {currentUser ? (
             <>
               <Link
                 href={`/profile/${encodeURIComponent(currentUser.username)}`}
                 className="ml-2 rounded-full border border-line px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-500"
               >
-                Profile
+                Профиль
               </Link>
               <button
                 type="button"
@@ -82,7 +107,7 @@ export function Header() {
                 className="ml-2 inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-500"
               >
                 <LogOut size={12} />
-                Logout
+                Выйти
               </button>
             </>
           ) : null}

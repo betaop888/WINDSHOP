@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { PurchaseRequestsTable } from "@/components/requests/PurchaseRequestsTable";
@@ -15,6 +15,7 @@ export function RequestsPage() {
     cancelRequest,
     refreshRequests
   } = useAppState();
+
   const [mode, setMode] = useState<"active" | "all">("active");
   const [allRequests, setAllRequests] = useState<PurchaseRequest[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -22,8 +23,8 @@ export function RequestsPage() {
   const loadAllRequests = useCallback(async () => {
     try {
       const response = await fetch("/api/requests?status=all");
-      const json = await response.json();
-      setAllRequests(json?.requests ?? []);
+      const json = (await response.json()) as { requests?: PurchaseRequest[] };
+      setAllRequests(json.requests ?? []);
     } catch {
       setAllRequests([]);
     }
@@ -47,10 +48,9 @@ export function RequestsPage() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl md:text-2xl">Active Purchase Requests</h1>
+          <h1 className="font-display text-xl md:text-2xl">Заявки на покупку</h1>
           <p className="mt-1 text-sm text-muted">
-            Everyone sees the same live list. Use <span className="font-semibold text-slate-200">Take</span> to claim
-            a request.
+            Общая онлайн-доска: все игроки видят один и тот же список в реальном времени.
           </p>
         </div>
 
@@ -60,14 +60,14 @@ export function RequestsPage() {
             onClick={() => setMode("active")}
             className={`rounded-full px-3 py-1 ${mode === "active" ? "bg-accent/15 text-accent" : "text-muted"}`}
           >
-            Active
+            Активные
           </button>
           <button
             type="button"
             onClick={() => setMode("all")}
             className={`rounded-full px-3 py-1 ${mode === "all" ? "bg-accent/15 text-accent" : "text-muted"}`}
           >
-            All
+            Все
           </button>
         </div>
       </div>
@@ -75,6 +75,7 @@ export function RequestsPage() {
       <PurchaseRequestsTable
         requests={mode === "active" ? requests : allRequests}
         currentUser={currentUser?.username ?? null}
+        currentUserRole={currentUser?.role ?? null}
         onTake={(id) =>
           void claimRequest(id).then((x) => {
             setMessage(x.message);

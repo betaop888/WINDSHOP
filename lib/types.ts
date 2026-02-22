@@ -1,13 +1,23 @@
-export type MarketCategory =
+﻿export type MarketCategory =
   | "Баннеры"
   | "Зачарованные книги"
   | "Алмазная броня и инструменты"
-  | "Незеритовые вещи";
+  | "Незеритовые вещи"
+  | "Пользовательские товары";
+
+export const MARKET_CATEGORIES: MarketCategory[] = [
+  "Баннеры",
+  "Зачарованные книги",
+  "Алмазная броня и инструменты",
+  "Незеритовые вещи",
+  "Пользовательские товары"
+];
 
 export interface MarketItem {
   id: string;
   sourceKey: string;
-  texture: string;
+  texture?: string;
+  imageUrl?: string;
   token: string;
   name: string;
   category: MarketCategory;
@@ -16,9 +26,12 @@ export interface MarketItem {
   lotLabel: string;
   unitLabel: string;
   priceAr: number;
+  listingId?: string;
+  ownerName?: string;
 }
 
 export type RequestStatus = "OPEN" | "CLAIMED" | "COMPLETED" | "CANCELLED";
+export type UserRole = "USER" | "ADMIN";
 
 export interface PurchaseRequest {
   id: string;
@@ -26,6 +39,7 @@ export interface PurchaseRequest {
   itemName: string;
   creatorName: string;
   claimerName: string | null;
+  preferredSellerName: string | null;
   quantity: number;
   offeredPriceAr: number;
   status: RequestStatus;
@@ -33,14 +47,51 @@ export interface PurchaseRequest {
   updatedAt: string;
 }
 
+export interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  priceAr: number;
+  category: string;
+  ownerName: string;
+  ownerDisplayName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionUser {
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  role: UserRole;
+  isBanned?: boolean;
+  banReason?: string | null;
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  authorName: string;
+  authorDisplayName: string | null;
+}
+
 export interface AccountProfile {
   username: string;
+  displayName: string | null;
   bio: string | null;
+  role: UserRole;
+  isBanned: boolean;
+  banReason: string | null;
   createdAt: string;
   stats: {
     createdOpen: number;
     createdTotal: number;
     claimedActive: number;
     completedAsClaimer: number;
+    completedSales: number;
+    successfulDealsTotal: number;
   };
 }

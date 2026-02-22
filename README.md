@@ -1,76 +1,96 @@
-# Wind Shop Marketplace (Online, Shared for All Players)
+﻿# WIND Shop Marketplace
 
-Next.js marketplace for Minecraft items with:
-- English registration/login (`username + password`)
-- Shared online purchase requests (all users see same board)
-- `Take / Release / Complete / Cancel` workflow
-- Player profiles with stats and editable bio
-- Prices merged from `https://betaop888.github.io/wind.github.io/data/items.json`
+Маркетплейс предметов Minecraft для приватного сервера WIND.
 
-## Stack
+## Что реализовано
+
+- Авторизация только через Discord OAuth2.
+- Ник на сайте автоматически синхронизируется с Discord.
+- Общая онлайн-доска заявок на покупку (`взяться / вернуть / завершить / отменить`).
+- Каталог предметов с ценами в валюте **Ары**.
+- Базовые предметы + пользовательские товары.
+- Зарегистрированные пользователи могут публиковать свои товары:
+  - название
+  - описание
+  - категория
+  - цена
+  - картинка (URL или загрузка файла)
+- Профили игроков:
+  - статистика сделок
+  - успешные сделки
+  - отзывы
+- Админ-функции:
+  - пользователь `nertin0` получает роль `ADMIN`
+  - админ может банить/разбанивать пользователей
+  - админ может редактировать/удалять любые товары
+
+## Стек
 
 - Next.js 14 (App Router)
 - Tailwind CSS
-- Lucide-react
-- Prisma + PostgreSQL (required for shared online state)
+- Lucide React
+- Prisma + PostgreSQL
 
-## 1) Local setup
+## Локальный запуск
 
 ```bash
 npm install
-cp .env.example .env
 ```
 
-Set `.env`:
+Создай `.env` на основе `.env.example` и заполни переменные:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
 SESSION_COOKIE_NAME="wind_session"
+DISCORD_CLIENT_ID="..."
+DISCORD_CLIENT_SECRET="..."
+DISCORD_REDIRECT_URI="http://localhost:3000/api/auth/discord/callback"
 ```
 
-Create/update DB schema:
+Синхронизация схемы БД:
 
 ```bash
 npm run db:push
 ```
 
-Run:
+Запуск:
 
 ```bash
 npm run dev
 ```
 
-## 2) Deploy GitHub -> Vercel (without issues)
+## Деплой GitHub -> Vercel
 
-1. Push full project to GitHub (`node_modules` and `.next` are ignored).
-2. Import repo in Vercel as **Next.js** project.
-3. In Vercel Project Settings -> Environment Variables add:
-   - `DATABASE_URL`
-   - `SESSION_COOKIE_NAME` (optional, default is `wind_session`)
-4. Deploy. `vercel.json` already runs `npm run db:push && npm run build`, so schema is synced on build automatically.
+1. Залей весь проект в GitHub (без `node_modules` и `.next`).
+2. Импортируй репозиторий в Vercel как Next.js проект.
+3. В `Project Settings -> Environment Variables` добавь:
+   - `DATABASE_URL` (или подключи Vercel Postgres)
+   - `SESSION_COOKIE_NAME` (опционально)
+   - `DISCORD_CLIENT_ID`
+   - `DISCORD_CLIENT_SECRET`
+   - `DISCORD_REDIRECT_URI` (например `https://your-domain.vercel.app/api/auth/discord/callback`)
+4. Деплой.
 
-### If build fails with `Environment variable not found: DATABASE_URL`
+`buildCommand` использует `npm run db:push && npm run build`.
+Если `DATABASE_URL` не задан, `db:push` будет пропущен (с предупреждением), чтобы сборка не падала.
 
-- Add `DATABASE_URL` in Vercel env vars and redeploy, **or**
-- Connect Vercel Postgres. Project now auto-falls back to:
-  - `POSTGRES_PRISMA_URL`
-  - `POSTGRES_URL_NON_POOLING`
-  - `POSTGRES_URL`
+## Основные маршруты
 
-## Core routes
+- `/` — маркет
+- `/login` — вход через Discord
+- `/requests` — заявки на покупку
+- `/profile/[username]` — профиль игрока
 
-- `/` - Market page
-- `/login` - Login
-- `/register` - Registration (English)
-- `/requests` - Shared live requests board
-- `/profile/[username]` - Public profile + own bio editing
+## Основные API
 
-## API routes
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- `GET /api/auth/discord`
+- `GET /api/auth/discord/callback`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `GET /api/listings`
+- `POST /api/listings`
+- `PATCH /api/listings/:id`
+- `DELETE /api/listings/:id`
 - `GET /api/requests?status=active|all`
 - `POST /api/requests`
 - `POST /api/requests/:id/claim`
@@ -79,3 +99,5 @@ npm run dev
 - `POST /api/requests/:id/cancel`
 - `GET /api/profiles/:username`
 - `GET/PATCH /api/profiles/me`
+- `GET/POST /api/profiles/:username/reviews`
+- `POST /api/admin/users/:username/ban`

@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   return ok({
     user: {
       username: user.username,
-      bio: user.bio
+      displayName: user.displayName,
+      bio: user.bio,
+      role: user.role
     }
   });
 }

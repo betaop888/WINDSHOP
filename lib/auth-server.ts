@@ -1,23 +1,11 @@
 import { randomBytes } from "crypto";
-import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
+import { User, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 const SESSION_TTL_DAYS = 30;
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "wind_session";
-export const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,24}$/;
-
-export function isValidEnglishUsername(username: string) {
-  return USERNAME_REGEX.test(username);
-}
-
-export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 10);
-}
-
-export async function verifyPassword(password: string, hash: string) {
-  return bcrypt.compare(password, hash);
-}
+export const ADMIN_USERNAME = "nertin0";
 
 export function createSessionToken() {
   return randomBytes(32).toString("hex");
@@ -27,6 +15,10 @@ function buildSessionExpiry() {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_TTL_DAYS);
   return expiresAt;
+}
+
+export function roleFromUsername(username: string): UserRole {
+  return username.toLowerCase() === ADMIN_USERNAME ? UserRole.ADMIN : UserRole.USER;
 }
 
 export async function createSession(userId: string) {
@@ -72,6 +64,10 @@ export function clearSessionCookie(response: NextResponse) {
   });
 }
 
+export function isAdmin(user: User | null | undefined) {
+  return Boolean(user && user.role === UserRole.ADMIN);
+}
+
 export async function getAuthUserByRequest(request: NextRequest) {
   const token = getSessionTokenFromRequest(request);
   if (!token) return null;
@@ -85,6 +81,11 @@ export async function getAuthUserByRequest(request: NextRequest) {
 
   if (session.expiresAt.getTime() < Date.now()) {
     await prisma.session.delete({ where: { id: session.id } });
+    return null;
+  }
+
+  if (session.user.isBanned) {
+    await prisma.session.deleteMany({ where: { userId: session.user.id } });
     return null;
   }
 

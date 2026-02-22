@@ -1,4 +1,4 @@
-const { spawnSync } = require("child_process");
+﻿const { spawnSync } = require("child_process");
 
 const env = { ...process.env };
 env.DATABASE_URL =
@@ -9,14 +9,14 @@ env.DATABASE_URL =
   "";
 
 if (!env.DATABASE_URL) {
-  console.error(
+  console.warn(
     [
-      "Prisma db push failed: DATABASE_URL is not set.",
-      "Set DATABASE_URL in Vercel Environment Variables",
+      "Prisma db push skipped: DATABASE_URL is not set.",
+      "For shared online mode, set DATABASE_URL in Vercel Environment Variables",
       "or connect Vercel Postgres (POSTGRES_PRISMA_URL will be auto-used)."
     ].join("\n")
   );
-  process.exit(1);
+  process.exit(0);
 }
 
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";

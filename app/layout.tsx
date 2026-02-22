@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Manrope, Unbounded } from "next/font/google";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { AppStateProvider } from "@/components/providers/AppStateProvider";
@@ -15,9 +15,9 @@ const unbounded = Unbounded({
 });
 
 export const metadata: Metadata = {
-  title: "Wind Shop Marketplace",
+  title: "WIND Shop Marketplace",
   description:
-    "Маркетплейс Minecraft предметов за валюту Ары: баннеры, книги, алмазные и незеритовые вещи."
+    "Маркетплейс предметов Minecraft для приватного сервера WIND: баннеры, книги, алмазные и незеритовые вещи за валюту Ары."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
